@@ -1,0 +1,30 @@
+[project]
+name = "regret"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Manoj Manikandan", email = "manoj.manikandan@student.manchester.ac.uk" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "matplotlib>=3.10.8",
+    "numpy>=2.3.5",
+    "pandas>=2.3.3",
+    "pyyaml>=6.0.3",
+    "scipy>=1.16.3",
+    "tqdm>=4.67.1",
+]
+
+[project.scripts]
+regret = "regret:main"
+sudoku = "algorithms.simulated_annealing:main"
+
+[build-system]
+requires = ["uv_build>=0.9.7,<0.10.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+lint = [
+    "ruff>=0.14.7",
+]
