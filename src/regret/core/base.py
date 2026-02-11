@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import numpy as np
 
+
 class Problem(ABC):
     def __init__(self, n: int):
         self.n = n
@@ -14,6 +15,7 @@ class Problem(ABC):
     def get_optimum_value(self) -> float:
         pass
 
+# TODO: Implement history storage for best solutions
 class Algorithm(ABC):
     def __init__(self, problem: Problem, seed: int | None = None):
         self.problem = problem
@@ -35,4 +37,3 @@ class Algorithm(ABC):
         while self.evaluations < budget:
             self.step()
         return self.best_value, self.best_solution
-

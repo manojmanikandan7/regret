@@ -18,7 +18,6 @@ dependencies = [
 
 [project.scripts]
 regret = "regret:main"
-sudoku = "algorithms.simulated_annealing:main"
 
 [build-system]
 requires = ["uv_build>=0.9.7,<0.10.0"]
@@ -26,5 +25,5 @@ build-backend = "uv_build"
 
 [dependency-groups]
 lint = [
-    "ruff>=0.14.7",
+    "ruff>=0.14.10",
 ]
