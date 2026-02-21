@@ -6,8 +6,11 @@ class RLS(Algorithm):
 
     def __init__(self, problem: Problem, seed: int | None = None):
         super().__init__(problem, seed)
-        self.current = self.rng.integers(0, 2, size=problem.n)
-        self.current_value = problem.evaluate(self.current)
+
+    def reset(self):
+        super().reset()
+        self.current = self.rng.integers(0, 2, size=self.problem.n)
+        self.current_value = self.problem.evaluate(self.current)
         self.evaluations = 1
         self.best_value = self.current_value
         self.best_solution = self.current.copy()
@@ -39,11 +42,14 @@ class RLSExploration(Algorithm):
         decay: bool = True,
         seed: int | None = None,
     ):
-        super().__init__(problem, seed)
         self.base_epsilon = epsilon or (1.0 / problem.n)
         self.decay = decay
-        self.current = self.rng.integers(0, 2, size=problem.n)
-        self.current_value = problem.evaluate(self.current)
+        super().__init__(problem, seed)
+
+    def reset(self):
+        super().reset()
+        self.current = self.rng.integers(0, 2, size=self.problem.n)
+        self.current_value = self.problem.evaluate(self.current)
         self.evaluations = 1
         self.best_value = self.current_value
         self.best_solution = self.current.copy()

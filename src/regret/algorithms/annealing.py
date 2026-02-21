@@ -18,10 +18,13 @@ class SimulatedAnnealing(Algorithm):
         T_func: CoolingSchedule | None = None,
         seed: int | None = None,
     ):
-        super().__init__(problem, seed)
         self.T_func = T_func or logarithmic_cooling
-        self.current = self.rng.integers(0, 2, size=problem.n)
-        self.current_value = problem.evaluate(self.current)
+        super().__init__(problem, seed)
+
+    def reset(self):
+        super().reset()
+        self.current = self.rng.integers(0, 2, size=self.problem.n)
+        self.current_value = self.problem.evaluate(self.current)
         self.evaluations = 1
         self.best_value = self.current_value
         self.best_solution = self.current.copy()
@@ -53,16 +56,13 @@ def logarithmic_cooling(t: int) -> int | float:
     return 1.0 / np.log(t + 2)
 
 
-
 def exponential_cooling(t: int, T0: float = 1.0, alpha: float = 0.95) -> int | float:
     """Exponential cooling schedule."""
     return T0 * (alpha**t)
-
 
 
 def linear_cooling(
     t: int, T0: float = 1.0, Tf: float = 0.01, max_iter: int = 10000
 ) -> int | float:
     """Linear cooling schedule."""
-    return T0 - (T0 - Tf) * t / max_iter
-
+    return max(Tf, T0 - (T0 - Tf) * t / max_iter)

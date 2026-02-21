@@ -1,4 +1,5 @@
 import numpy as np
+
 from regret.core.base import Algorithm, Problem
 
 
@@ -11,10 +12,13 @@ class OnePlusOneEA(Algorithm):
         mutation_rate: float | None = None,
         seed: int | None = None,
     ):
-        super().__init__(problem, seed)
         self.mutation_rate = mutation_rate or (1.0 / problem.n)
-        self.current = self.rng.integers(0, 2, size=problem.n)
-        self.current_value = problem.evaluate(self.current)
+        super().__init__(problem, seed)
+
+    def reset(self):
+        super().reset()
+        self.current = self.rng.integers(0, 2, size=self.problem.n)
+        self.current_value = self.problem.evaluate(self.current)
         self.evaluations = 1
         self.best_value = self.current_value
         self.best_solution = self.current.copy()
@@ -49,15 +53,19 @@ class MuPlusLambdaEA(Algorithm):
         mutation_rate: float | None = None,
         seed: int | None = None,
     ):
-        super().__init__(problem, seed)
         self.mu = mu
         self.lmbda = lmbda
         self.mutation_rate = mutation_rate or (1.0 / problem.n)
+        super().__init__(problem, seed)
 
+    def reset(self):
+        super().reset()
         # Initialize population
-        self.population = [self.rng.integers(0, 2, size=problem.n) for _ in range(mu)]
-        self.fitness = [problem.evaluate(ind) for ind in self.population]
-        self.evaluations = mu
+        self.population = [
+            self.rng.integers(0, 2, size=self.problem.n) for _ in range(self.mu)
+        ]
+        self.fitness = [self.problem.evaluate(ind) for ind in self.population]
+        self.evaluations = self.mu
 
         best_idx = np.argmax(self.fitness)
         self.best_value = self.fitness[best_idx]
