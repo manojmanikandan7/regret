@@ -1,15 +1,16 @@
 import numpy as np
+
 from regret.core.base import Problem
 
 
-class MaxSAT(Problem):
+class MaxkSAT(Problem):
     """Random k-SAT problem (maximization version)."""
 
     def __init__(
         self, n: int, m: int | None = None, k: int = 3, seed: int | None = None
     ):
         self.k = k
-        self.m = m or 4 * n  # Clause-to-variable ratio
+        self.m = m or 4 * n  # Number of clauses; default is 4 times the number of variables
         self.rng = np.random.default_rng(seed)
         self._generate_clauses(n)
         super().__init__(n)
@@ -27,6 +28,7 @@ class MaxSAT(Problem):
         for variables, negations in self.clauses:
             clause_sat = False
             for var, neg in zip(variables, negations):
+                # If the variable in x is true and if the corresponding variable is not negated, the clause is satisfied
                 if (x[var] == 1) != (neg == 1):
                     clause_sat = True
                     break
