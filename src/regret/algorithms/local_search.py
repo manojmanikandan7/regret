@@ -14,6 +14,7 @@ class RLS(Algorithm):
         self.evaluations = 1
         self.best_value = self.current_value
         self.best_solution = self.current.copy()
+        self._record_history(self.current_value)
 
     def step(self):
         neighbor = self.current.copy()
@@ -30,6 +31,8 @@ class RLS(Algorithm):
         if self.current_value > self.best_value:
             self.best_value = self.current_value
             self.best_solution = self.current.copy()
+            
+        self._record_history(self.current_value)
 
 
 class RLSExploration(Algorithm):

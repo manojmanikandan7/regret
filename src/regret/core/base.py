@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+
 import numpy as np
 
 
@@ -15,7 +16,7 @@ class Problem(ABC):
     def get_optimum_value(self) -> float:
         pass
 
-# TODO: Implement history storage for best solutions
+
 class Algorithm(ABC):
     def __init__(self, problem: Problem, seed: int | None = None):
         self.problem = problem
@@ -23,10 +24,15 @@ class Algorithm(ABC):
         self.reset()
 
     def reset(self):
+        """Reset algorithm state"""
         self.evaluations = 0
         self.best_value = -np.inf
         self.best_solution = None
         self.history = []
+        
+        
+    def _record_history(self, current_value):
+        self.history.append((self.evaluations, current_value, self.best_value))
 
     @abstractmethod
     def step(self):
