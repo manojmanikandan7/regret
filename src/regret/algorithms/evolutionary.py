@@ -41,7 +41,7 @@ class OnePlusOneEA(Algorithm):
         if self.current_value > self.best_value:
             self.best_value = self.current_value
             self.best_solution = self.current.copy()
-            
+
         self._record_history(self.current_value)
 
 
@@ -73,7 +73,7 @@ class MuPlusLambdaEA(Algorithm):
         best_idx = np.argmax(self.fitness)
         self.best_value = self.fitness[best_idx]
         self.best_solution = self.population[best_idx].copy()
-        
+
         # Here, the best_value from the population is considered the current value
         # NOTE: Change to all values of the population, if really neccessary
         #       WARN: Breaks instantaneous regret and cummulative regret calcs
@@ -108,7 +108,7 @@ class MuPlusLambdaEA(Algorithm):
         if self.fitness[best_idx] > self.best_value:
             self.best_value = self.fitness[best_idx]
             self.best_solution = self.population[best_idx].copy()
-        
+
         # Here, the best_value from the population is considered the current value
         # NOTE: Change to all values of the population, if really neccessary
         #       WARN: Breaks instantaneous regret and cummulative regret calcs

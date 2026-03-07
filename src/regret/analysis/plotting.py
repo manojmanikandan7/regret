@@ -218,7 +218,19 @@ def plot_performance_profile(
     if title:
         ax.set_title(title)
     else:
-        ax.set_title(f"Performance Profile (Budget = {budget})")
+        ax.set_ylabel("Current value")
+        if f_star is not None:
+            ax.axhline(
+                f_star,
+                color="black",
+                linestyle="--",
+                linewidth=1,
+                alpha=0.6,
+                label="f* (optimum)",
+            )
+
+    if title:
+        ax.set_title(title)
     ax.legend()
     ax.grid(True, alpha=0.3)
 

@@ -6,7 +6,7 @@ from regret.core.base import Algorithm, Problem
 
 
 class CoolingSchedule(Protocol):
-    def __call__(self, t: int, **kwargs: float) -> int | float: ...
+    def __call__(self, t: int) -> int | float: ...
 
 
 class SimulatedAnnealing(Algorithm):
@@ -16,9 +16,11 @@ class SimulatedAnnealing(Algorithm):
         self,
         problem: Problem,
         T_func: CoolingSchedule | None = None,
+        min_T: float | None = None,
         seed: int | None = None,
     ):
-        self.T_func = T_func or logarithmic_cooling
+        self.T_func = T_func or logarithmic_cooling()
+        self.min_T = min_T or 1e-9
         super().__init__(problem, seed)
 
     def reset(self):
@@ -31,41 +33,56 @@ class SimulatedAnnealing(Algorithm):
         self._record_history(self.current_value)
 
     def step(self):
-        # Generate neighbor
+        # Generate neighbour
         neighbour = self.current.copy()
         i = self.rng.integers(0, self.problem.n)
         neighbour[i] = 1 - neighbour[i]
 
-        neighbor_value = self.problem.evaluate(neighbour)
+        neighbour_value = self.problem.evaluate(neighbour)
         self.evaluations += 1
 
         # Metropolis acceptance criterion
-        T = self.T_func(self.evaluations)
-        delta = neighbor_value - self.current_value
+        # NOTE: Capping down at a minimum temperature
+        # TODO: Explore if it is better to stop early
+        # (since it essentially reached absolute zero)
+        T = max(self.min_T, self.T_func(self.evaluations))
+        delta = neighbour_value - self.current_value
 
         if delta >= 0 or self.rng.random() < np.exp(delta / T):
             self.current = neighbour
-            self.current_value = neighbor_value
+            self.current_value = neighbour_value
 
         if self.current_value > self.best_value:
             self.best_value = self.current_value
             self.best_solution = self.current.copy()
-        
+
         self._record_history(self.current_value)
 
 
-def logarithmic_cooling(t: int) -> int | float:
-    """Logarithmic cooling schedule."""
-    return 1.0 / np.log(t + 2)
+def logarithmic_cooling(d: float = 1.0) -> CoolingSchedule:
+    """Logarithmic cooling schedule initializer."""
+
+    def schedule(t: int) -> int | float:
+        return d / np.log(t + 1)
+
+    return schedule
 
 
-def exponential_cooling(t: int, T0: float = 1.0, alpha: float = 0.95) -> int | float:
-    """Exponential cooling schedule."""
-    return T0 * (alpha**t)
+def exponential_cooling(T0: float = 1.0, alpha: float = 0.95) -> CoolingSchedule:
+    """Exponential cooling schedule initializer."""
+
+    def schedule(t: int) -> int | float:
+        return T0 * (alpha**t)
+
+    return schedule
 
 
 def linear_cooling(
-    t: int, T0: float = 1.0, Tf: float = 0.01, max_iter: int = 10000
-) -> int | float:
-    """Linear cooling schedule."""
-    return max(Tf, T0 - (T0 - Tf) * t / max_iter)
+    T0: float = 1.0, Tf: float = 0.01, max_iter: int = 10000
+) -> CoolingSchedule:
+    """Linear cooling schedule initializer."""
+
+    def schedule(t: int) -> int | float:
+        return max(Tf, T0 - (T0 - Tf) * t / max_iter)
+
+    return schedule
