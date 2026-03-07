@@ -29,8 +29,7 @@ class Algorithm(ABC):
         self.best_value = -np.inf
         self.best_solution = None
         self.history = []
-        
-        
+
     def _record_history(self, current_value):
         self.history.append((self.evaluations, current_value, self.best_value))
 
