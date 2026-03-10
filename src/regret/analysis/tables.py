@@ -1,9 +1,8 @@
 import numpy as np
 import pandas as pd
-from typing import Dict, List
 
 
-def create_results_table(results: Dict[tuple, List[Dict]], budget: int) -> pd.DataFrame:
+def create_results_table(results: dict[tuple, list[dict]], budget: int) -> pd.DataFrame:
     """Create a summary table for a specific budget."""
 
     algorithms = [alg for alg, b in results.keys() if b == budget]

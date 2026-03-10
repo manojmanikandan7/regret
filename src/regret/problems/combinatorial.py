@@ -10,7 +10,9 @@ class MaxkSAT(Problem):
         self, n: int, m: int | None = None, k: int = 3, seed: int | None = None
     ):
         self.k = k
-        self.m = m or 4 * n  # Number of clauses; default is 4 times the number of variables
+        self.m = (
+            m or 4 * n
+        )  # Number of clauses; default is 4 times the number of variables
         self.rng = np.random.default_rng(seed)
         self._generate_clauses(n)
         super().__init__(n)

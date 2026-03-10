@@ -1,13 +1,14 @@
-import numpy as np
-from pathlib import Path
 import json
-from datetime import datetime
-from typing import Type, List, Dict, Any
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Type
+
+import numpy as np
 from tqdm import tqdm
 
 from regret.core.base import Algorithm, Problem
-from regret.core.metrics import simple_regret, compute_statistics, probability_optimal
+from regret.core.metrics import compute_statistics, probability_optimal, simple_regret
 
 
 class ExperimentRunner:
@@ -25,7 +26,7 @@ class ExperimentRunner:
         seed: int,
         mode: str = "lite",
         **alg_kwargs,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Run a single experiment."""
         alg = algorithm_class(problem, seed=seed, **alg_kwargs)
         best_value, best_solution = alg.run(budget)
@@ -51,7 +52,7 @@ class ExperimentRunner:
         name: str | None = None,
         parallel: bool = False,
         **alg_kwargs,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Run multiple independent trials."""
 
         if parallel:
@@ -84,7 +85,7 @@ class ExperimentRunner:
         runs: int,
         mode: str,
         **alg_kwargs,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Run experiments in parallel."""
         results = []
         with ProcessPoolExecutor() as executor:
@@ -112,7 +113,7 @@ class ExperimentRunner:
         budget: int,
         runs: int,
         mode: str,
-        results: List[Dict[str, Any]],
+        results: list[dict[str, Any]],
     ):
         """Save experiment results to JSON."""
         regrets = np.array([r["regret"] for r in results])
@@ -141,7 +142,7 @@ class ExperimentRunner:
         with open(filepath, "w") as f:
             json.dump(output, f, indent=2)
 
-    def load_results(self, name: str) -> Dict[str, Any]:
+    def load_results(self, name: str) -> dict[str, Any]:
         """Load saved results."""
         filepath = self.output_dir / f"{name}.json"
         with open(filepath, "r") as f:
@@ -156,13 +157,13 @@ class BatchRunner:
 
     def run_suite(
         self,
-        algorithms: Dict[str, Type[Algorithm]],
+        algorithms: dict[str, Type[Algorithm]],
         problem: Problem,
-        budgets: List[int],
+        budgets: list[int],
         runs: int = 30,
         suite_name: str = "suite",
         parallel: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Run a full suite of experiments."""
 
         all_results = {}
