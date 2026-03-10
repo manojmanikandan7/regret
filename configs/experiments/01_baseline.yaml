@@ -1,0 +1,188 @@
+suite:
+  name: "01_baseline"
+  description: "Baseline pseudo-boolean benchmark suite"
+  runs: 50
+  mode: "full"
+  parallel: true
+  budgets: [100, 500, 1000, 5000, 10000]
+  output:
+    raw_root: "results/raw"
+    figures_root: "results/figures"
+
+problems:
+  - name: "OneMax"
+    class: "OneMax"
+    params:
+      n: 100
+
+  - name: "LeadingOnes"
+    class: "LeadingOnes"
+    params:
+      n: 100
+
+  - name: "TwoMax"
+    class: "TwoMax"
+    params:
+      n: 100
+
+  - name: "Jump-3"
+    class: "Jump"
+    params:
+      n: 100
+      k: 3
+
+  - name: "Trap"
+    class: "Trap"
+    params:
+      n: 100
+      k: 3
+
+  - name: "Bin-Val"
+    class: "BinVal"
+    params:
+      n: 60
+
+algorithms:
+  - name: "RLS"
+    class: "RLS"
+    args:
+      defaults: {}
+      by_problem: {}
+
+  - name: "RLSExploration"
+    class: "RLSExploration"
+    args:
+      defaults: {}
+      by_problem: {}
+
+  - name: "(1+1)-EA"
+    class: "OnePlusOneEA"
+    args:
+      defaults: {}
+      by_problem: {}
+
+  - name: "SA-Log"
+    class: "SimulatedAnnealing"
+    args:
+      defaults:
+        T_func:
+          type: "logarithmic_cooling"
+          params:
+            d: 4.0
+      by_problem: {}
+
+  - name: "SA-Lin"
+    class: "SimulatedAnnealing"
+    args:
+      defaults:
+        T_func:
+          type: "linear_cooling"
+          params: {}
+      by_problem: {}
+
+  - name: "SA-Exp"
+    class: "SimulatedAnnealing"
+    args:
+      defaults:
+        T_func:
+          type: "exponential_cooling"
+          params: {}
+      by_problem: {}
+
+plotting:
+  enabled: true
+  save: true
+
+  layout:
+    per_problem_dir: true
+    include_n_subdir: true
+    structure:
+      aggregate: "aggregate"
+      history: "history"
+      distributions: "distributions"
+
+  titles:
+    include_problem_name: true
+    include_problem_size: true
+
+  plots:
+    regret_curves:
+      enabled: true
+      filename: "regret_curves.pdf"
+      log_scale: true
+
+    convergence_probability:
+      enabled: true
+      filename: "convergence_probability.pdf"
+
+    comparison_heatmap:
+      enabled: true
+      filename: "comparison_heatmap.pdf"
+
+    regret_boxplots:
+      enabled: true
+      budget: "max"
+      filename: "regret_boxplot_b{budget}.pdf"
+
+    performance_profile:
+      enabled: true
+      budget: "max"
+      filename: "performance_profile_b{budget}.pdf"
+
+    # Value history plots (plot_history function)
+    history_current:
+      enabled: true
+      filename: "history_current.pdf"
+      series: "current" # "current" or "best"
+      log_x: false
+      log_y: false
+      show_ttfo_markers: true
+
+    history_best:
+      enabled: true
+      filename: "history_best.pdf"
+      series: "best" # "current" or "best"
+      log_x: false
+      log_y: false
+      show_ttfo_markers: true
+
+    # Regret plots (plot_regret_curves function)
+    regret_instantaneous:
+      enabled: true
+      filename: "history_regret_instantaneous.pdf"
+      series: "instantaneous" # "instantaneous" or "cumulative"
+      use_best: false
+      log_x: false
+      log_y: true
+      show_ttfo_markers: true
+
+    regret_cumulative:
+      enabled: true
+      filename: "history_regret_cumulative.pdf"
+      series: "cumulative" # "instantaneous" or "cumulative"
+      use_best: false
+      log_x: false
+      log_y: true
+      show_ttfo_markers: true
+
+    regret_instantaneous_best:
+      enabled: true
+      filename: "history_regret_instantaneous_best.pdf"
+      series: "instantaneous" # "instantaneous" or "cumulative"
+      use_best: true
+      log_x: false
+      log_y: true
+      show_ttfo_markers: true
+
+    regret_cumulative_best:
+      enabled: true
+      filename: "history_regret_cumulative_best.pdf"
+      series: "cumulative" # "instantaneous" or "cumulative"
+      use_best: true
+      log_x: false
+      log_y: true
+      show_ttfo_markers: true
+
+    ttfo_distribution:
+      enabled: true
+      filename: "history_ttfo_markers.pdf"
