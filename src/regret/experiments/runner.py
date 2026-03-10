@@ -23,19 +23,23 @@ class ExperimentRunner:
         problem: Problem,
         budget: int,
         seed: int,
+        mode: str = "lite",
         **alg_kwargs,
     ) -> Dict[str, Any]:
         """Run a single experiment."""
         alg = algorithm_class(problem, seed=seed, **alg_kwargs)
         best_value, best_solution = alg.run(budget)
 
-        return {
+        result = {
             "regret": simple_regret(best_value, problem.f_star),
             "best_value": best_value,
             "optimal": abs(best_value - problem.f_star) < 1e-9,
             "evaluations": alg.evaluations,
             "seed": seed,
         }
+        if mode == "full":
+            result["trajectory"] = alg.history
+        return result
 
     def run_experiment(
         self,
@@ -43,6 +47,7 @@ class ExperimentRunner:
         problem: Problem,
         budget: int,
         runs: int = 30,
+        mode: str = "lite",
         name: str | None = None,
         parallel: bool = False,
         **alg_kwargs,
@@ -51,7 +56,7 @@ class ExperimentRunner:
 
         if parallel:
             results = self._run_parallel(
-                algorithm_class, problem, budget, runs, **alg_kwargs
+                algorithm_class, problem, budget, runs, mode, **alg_kwargs
             )
         else:
             results = []
@@ -59,13 +64,15 @@ class ExperimentRunner:
                 range(runs), desc=f"{algorithm_class.__name__}", leave=False
             ):
                 result = self.run_single(
-                    algorithm_class, problem, budget, seed, **alg_kwargs
+                    algorithm_class, problem, budget, seed, mode, **alg_kwargs
                 )
                 results.append(result)
 
         # Save results
         if name:
-            self._save_results(name, algorithm_class, problem, budget, runs, results)
+            self._save_results(
+                name, algorithm_class, problem, budget, runs, mode, results
+            )
 
         return results
 
@@ -75,6 +82,7 @@ class ExperimentRunner:
         problem: Problem,
         budget: int,
         runs: int,
+        mode: str,
         **alg_kwargs,
     ) -> List[Dict[str, Any]]:
         """Run experiments in parallel."""
@@ -87,6 +95,7 @@ class ExperimentRunner:
                     problem,
                     budget,
                     seed,
+                    mode,
                     **alg_kwargs,
                 ): seed
                 for seed in range(runs)
@@ -102,6 +111,7 @@ class ExperimentRunner:
         problem: Problem,
         budget: int,
         runs: int,
+        mode: str,
         results: List[Dict[str, Any]],
     ):
         """Save experiment results to JSON."""
@@ -115,15 +125,18 @@ class ExperimentRunner:
                 "problem_size": problem.n,
                 "budget": budget,
                 "runs": runs,
+                "mode": mode,
                 "timestamp": datetime.now().isoformat(),
             },
             "statistics": {
                 **compute_statistics(regrets),
                 "prob_optimal": probability_optimal(regrets),
+                "global_optimum": problem.f_star,
             },
             "results": results,
         }
 
+        Path(self.output_dir / name).parent.mkdir(parents=True, exist_ok=True)
         filepath = self.output_dir / f"{name}.json"
         with open(filepath, "w") as f:
             json.dump(output, f, indent=2)
