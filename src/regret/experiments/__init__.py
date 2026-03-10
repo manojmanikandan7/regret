@@ -16,9 +16,9 @@ from regret.problems.pseudo_boolean import (
 )
 from regret.algorithms.annealing import (
     SimulatedAnnealing,
-    logarithmic_cooling,
-    linear_cooling,
-    exponential_cooling,
+    LogarithmicCooling,
+    LinearCooling,
+    ExponentialCooling,
 )
 
 from regret.algorithms.local_search import RLS, RLSExploration
@@ -45,9 +45,9 @@ ALGORITHM_REGISTRY: dict[str, type[Algorithm]] = {
 }
 
 COOLING_REGISTRY: dict[str, Callable[..., Callable[[int], float]]] = {
-    "logarithmic": logarithmic_cooling,
-    "linear": linear_cooling,
-    "exponential": exponential_cooling,
+    "logarithmic": LogarithmicCooling,
+    "linear": LinearCooling,
+    "exponential": ExponentialCooling,
 }
 
 __all__ = [

@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import Protocol
 
 import numpy as np
@@ -19,7 +20,7 @@ class SimulatedAnnealing(Algorithm):
         min_T: float | None = None,
         seed: int | None = None,
     ):
-        self.T_func = T_func or logarithmic_cooling()
+        self.T_func = T_func or LogarithmicCooling()
         self.min_T = min_T or 1e-9
         super().__init__(problem, seed)
 
@@ -61,30 +62,34 @@ class SimulatedAnnealing(Algorithm):
         self._record_history(self.current_value)
 
 
-def logarithmic_cooling(d: float = 1.0) -> CoolingSchedule:
+@dataclass(frozen=True)
+class LogarithmicCooling(CoolingSchedule):
     """Logarithmic cooling schedule initializer."""
 
-    def schedule(t: int) -> int | float:
-        return d / np.log(t + 1)
+    d: float = 1.0
 
-    return schedule
+    def __call__(self, t: int) -> int | float:
+        return self.d / np.log(t + 1)
 
 
-def exponential_cooling(T0: float = 1.0, alpha: float = 0.95) -> CoolingSchedule:
+@dataclass(frozen=True)
+class ExponentialCooling(CoolingSchedule):
     """Exponential cooling schedule initializer."""
 
-    def schedule(t: int) -> int | float:
-        return T0 * (alpha**t)
+    T0: float = 1.0
+    alpha: float = 0.95
 
-    return schedule
+    def __call__(self, t: int) -> int | float:
+        return self.T0 * (self.alpha**t)
 
 
-def linear_cooling(
-    T0: float = 1.0, Tf: float = 0.01, max_iter: int = 10000
-) -> CoolingSchedule:
+@dataclass(frozen=True)
+class LinearCooling(CoolingSchedule):
     """Linear cooling schedule initializer."""
 
-    def schedule(t: int) -> int | float:
-        return max(Tf, T0 - (T0 - Tf) * t / max_iter)
+    T0: float = 1.0
+    Tf: float = 0.01
+    max_iter: int = 10000
 
-    return schedule
+    def __call__(self, t: int) -> int | float:
+        return max(self.Tf, self.T0 - (self.T0 - self.Tf) * t / self.max_iter)

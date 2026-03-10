@@ -74,7 +74,6 @@ def resolve_cooling(spec: Any) -> Callable[[int], float]:
 
     if isinstance(spec, str):
         key = spec.strip().lower()
-        key = key.replace("_cooling", "").replace("_function", "")
         if key in COOLING_REGISTRY:
             return COOLING_REGISTRY[key]()
         raise ValueError(
@@ -84,7 +83,6 @@ def resolve_cooling(spec: Any) -> Callable[[int], float]:
 
     if isinstance(spec, dict):
         kind = str(spec.get("type", "logarithmic")).strip().lower()
-        kind = kind.replace("_cooling", "").replace("_function", "")
         params = spec.get("params", {})
         if kind in COOLING_REGISTRY:
             return COOLING_REGISTRY[kind](**params)
