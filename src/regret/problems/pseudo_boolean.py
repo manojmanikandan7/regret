@@ -97,3 +97,77 @@ class Trap(Problem):
     def get_optimum_value(self) -> float:
         return float(self.n)
 
+
+class Plateau(Problem):
+    """
+    OneMax with a flat region.
+
+    Returns the number of ones, but creates a plateau (flat fitness)
+    when the number of ones is between (n - k) and (n - 1).
+    """
+
+    def __init__(self, n: int, k: int = 3):
+        self.k = k
+        super().__init__(n)
+
+    def evaluate(self, x: np.ndarray) -> float:
+        ones = np.sum(x)
+        if ones == self.n:
+            return float(self.n)
+        elif ones >= self.n - self.k:
+            # Plateau region
+            return float(self.n - self.k)
+        else:
+            return float(ones)
+
+    def get_optimum_value(self) -> float:
+        return float(self.n)
+
+
+class HIFF(Problem):
+    """
+    Hierarchical If-and-only-If function.
+
+    Rewards blocks of identical bits at multiple hierarchical levels.
+    The problem size n must be a power of 2.
+    """
+
+    def __init__(self, n: int):
+        # Ensure n is a power of 2
+        if n & (n - 1) != 0 or n < 2:
+            raise ValueError("HIFF requires n to be a power of 2")
+        super().__init__(n)
+
+    def _hiff_value(self, block: np.ndarray) -> tuple[float, int | None]:
+        """
+        Compute HIFF value for a block.
+
+        Returns (fitness contribution, consensus value or None).
+        Consensus is 0 if all zeros, 1 if all ones, None otherwise.
+        """
+        if len(block) == 1:
+            return 1.0, int(block[0])
+
+        mid = len(block) // 2
+        left_fit, left_val = self._hiff_value(block[:mid])
+        right_fit, right_val = self._hiff_value(block[mid:])
+
+        fitness = left_fit + right_fit
+
+        # Check if both halves have same consensus
+        if left_val is not None and right_val is not None and left_val == right_val:
+            fitness += len(block)
+            return fitness, left_val
+        else:
+            return fitness, None
+
+    def evaluate(self, x: np.ndarray) -> float:
+        fitness, _ = self._hiff_value(x)
+        return fitness
+
+    def get_optimum_value(self) -> float:
+        # Optimum is when all bits are identical (all 0s or all 1s)
+        # At each level k (0 to log2(n)), we get n contributions
+        # Total = n * (log2(n) + 1)
+        levels = int(np.log2(self.n)) + 1
+        return float(self.n * levels)
