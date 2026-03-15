@@ -1,0 +1,257 @@
+suite:
+  name: "02_extended"
+  description: "Extended exploratory benchmark — pseudo-boolean, combinatorial, and landscape problems"
+  runs: 30          # Reduced from 50; NK init is expensive, and 30 is sufficient for variance estimates
+  mode: "full"     
+  parallel: true
+  budgets: [100, 500, 1000, 5000, 10000]
+  output:
+    raw_root: "results/raw"
+    figures_root: "results/figures"
+
+problems:
+  # ── Pseudo-Boolean (carried from baseline) ────────────────────────────────
+  - name: "OneMax"
+    class: "OneMax"
+    params:
+      n: 100
+
+  - name: "LeadingOnes"
+    class: "LeadingOnes"
+    params:
+      n: 100
+
+  - name: "TwoMax"
+    class: "TwoMax"
+    params:
+      n: 100
+
+  - name: "Jump-3"
+    class: "Jump"
+    params:
+      n: 100
+      k: 3
+
+  - name: "Jump-5"
+    class: "Jump"
+    params:
+      n: 100
+      k: 5
+
+  - name: "Trap"
+    class: "Trap"
+    params:
+      n: 100
+      k: 3
+
+  - name: "BinVal"
+    class: "BinVal"
+    params:
+      n: 60  # Optimum is 2^60 - 1; keep n small to avoid float precision issues
+
+  # Extended Pseudo-Boolean
+  - name: "Plateau"
+    class: "Plateau"
+    params:
+      n: 100
+      k: 10
+
+  - name: "HIFF"
+    class: "HIFF"
+    params:
+      # Hierarchical if and only if requires n to be a power of 2.
+      # Optimum = 2n * log2(n) = 2*64*6 = 768.
+      n: 64
+
+  # Combinatorial 
+  - name: "MaxkSAT"
+    class: "MaxkSAT"
+    params:
+      n: 50     # 50 boolean variables - tractable for all algorithms
+      k: 3
+      m: 200    # 4n clauses; standard phase-transition regime
+      seed: 42  # Fix instance seed for reproducibility across algorithm comparisons
+
+  # Rugged Landscape 
+  - name: "NK-k2"
+    class: "NKLandscape"
+    params:
+      n: 20     # HARD LIMIT: get_optimum_value() does exhaustive search for n<=20.
+      k: 2      # Low epistasis; moderately rugged
+      seed: 42  # Fix instance seed
+
+  - name: "NK-k4"
+    class: "NKLandscape"
+    params:
+      n: 20
+      k: 4      # Higher epistasis; highly rugged — expect all algorithms to struggle
+      seed: 42
+
+algorithms:
+  # Local Search
+  - name: "RLS"
+    class: "RLS"
+    args:
+      defaults: {}
+      by_problem: {}
+
+  - name: "RLSExploration"
+    class: "RLSExploration"
+    args:
+      defaults: {}
+      by_problem:
+        # On NK landscapes, higher base epsilon helps escape local optima
+        NK-k2:
+          epsilon: 0.05
+          decay: false
+        NK-k4:
+          epsilon: 0.1
+          decay: false
+
+  # Evolutionary
+  - name: "(1+1)-EA"
+    class: "OnePlusOneEA"
+    args:
+      defaults: {}
+      by_problem: {}
+
+  - name: "(1+10)-EA"
+    class: "MuPlusLambdaEA"
+    args:
+      defaults:
+        mu: 1
+        lmbda: 10
+        # mutation_rate defaults to 1/n if omitted
+      by_problem: {}
+
+  - name: "(10+10)-EA"
+    class: "MuPlusLambdaEA"
+    args:
+      defaults:
+        mu: 10
+        lmbda: 10
+      by_problem: {}
+
+  # Simulated Annealing
+  - name: "SA-Log"
+    class: "SimulatedAnnealing"
+    args:
+      defaults:
+        T_func:
+          type: "logarithmic"
+          params:
+            d: 4.0
+      by_problem:
+        # MaxkSAT has a rough energy landscape; larger d slows cooling
+        MaxkSAT:
+          T_func:
+            type: "logarithmic"
+            params:
+              d: 8.0
+        NK-k2:
+          T_func:
+            type: "logarithmic"
+            params:
+              d: 6.0
+        NK-k4:
+          T_func:
+            type: "logarithmic"
+            params:
+              d: 6.0
+
+plotting:
+  enabled: true
+  save: true
+
+  layout:
+    per_problem_dir: true
+    include_n_subdir: true
+    structure:
+      aggregate: "aggregate"
+      history: "history"
+      distributions: "distributions"
+
+  titles:
+    include_problem_name: true
+    include_problem_size: true
+
+  plots:
+    regret_curves:
+      enabled: true
+      filename: "regret_curves.pdf"
+      log_scale: true
+
+    convergence_probability:
+      enabled: true
+      filename: "convergence_probability.pdf"
+
+    comparison_heatmap:
+      enabled: true
+      filename: "comparison_heatmap.pdf"
+
+    regret_boxplots:
+      enabled: true
+      budget: "max"
+      filename: "regret_boxplot_b{budget}.pdf"
+
+    performance_profile:
+      enabled: true
+      budget: "max"
+      filename: "performance_profile_b{budget}.pdf"
+
+    history_current:
+      enabled: true
+      filename: "history_current.pdf"
+      series: "current"
+      log_x: false
+      log_y: false
+      show_ttfo_markers: true
+
+    history_best:
+      enabled: true
+      filename: "history_best.pdf"
+      series: "best"
+      log_x: false
+      log_y: false
+      show_ttfo_markers: true
+
+    regret_instantaneous:
+      enabled: true
+      filename: "history_regret_instantaneous.pdf"
+      series: "instantaneous"
+      use_best: false
+      log_x: false
+      log_y: true
+      show_ttfo_markers: true
+
+    regret_cumulative:
+      enabled: true
+      filename: "history_regret_cumulative.pdf"
+      series: "cumulative"
+      use_best: false
+      log_x: false
+      log_y: true
+      show_ttfo_markers: true
+
+    regret_instantaneous_best:
+      enabled: true
+      filename: "history_regret_instantaneous_best.pdf"
+      series: "instantaneous"
+      use_best: true
+      log_x: false
+      log_y: true
+      show_ttfo_markers: true
+
+    regret_cumulative_best:
+      enabled: true
+      filename: "history_regret_cumulative_best.pdf"
+      series: "cumulative"
+      use_best: true
+      log_x: false
+      log_y: true
+      show_ttfo_markers: true
+
+    ttfo_distribution:
+      enabled: true
+      filename: "history_ttfo_markers.pdf"
+      # Note: MaxkSAT will produce empty TTFO plots — expected and worth documenting.
