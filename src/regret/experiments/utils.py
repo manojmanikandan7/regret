@@ -251,7 +251,7 @@ def generate_plots(
         """Format title with problem name and budget."""
         if template:
             return template.format(problem=problem, budget=budget)
-        return f"{problem} @ Budget={budget}"
+        return f"{problem} at Budget={budget}"
 
     # Aggregate plots (across budgets)
     if _is_enabled("regret_curves"):
@@ -335,7 +335,7 @@ def generate_plots(
                 save_path=str(
                     dirs["history"] / _get_filename(plot_key, default_filename)
                 ),
-                title=f"{problem_name}: {series.title()} Value Trajectory @ Budget={max_budget}",
+                title=f"{problem_name}: {series.title()} Value Trajectory at Budget={max_budget}",
                 series=series,
                 log_x=cfg.get("log_x", False),
                 log_y=cfg.get("log_y", False),
@@ -373,7 +373,7 @@ def generate_plots(
                 save_path=str(
                     dirs["history"] / _get_filename(plot_key, default_filename)
                 ),
-                title=f"{problem_name}: {title_suffix} Trajectory @ Budget={max_budget}",
+                title=f"{problem_name}: {title_suffix} Trajectory at Budget={max_budget}",
                 series=series,
                 use_best=use_best,
                 log_x=cfg.get("log_x", False),

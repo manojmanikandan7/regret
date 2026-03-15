@@ -107,8 +107,7 @@ def cmd_analyze(args: argparse.Namespace) -> int:
     """
     try:
         config = validate_config(args.config)
-        results_dir = Path(args.results_dir) if args.results_dir else None
-        analyze_results(config, results_dir)
+        analyze_results(config)
         print("Analysis completed")
         return 0
     except ValidationError as e:
@@ -150,13 +149,8 @@ def main() -> int:
     )
 
     # Analyze subcommand
-    analyze_parser = subparsers.add_parser(
-        "analyze", help="Regenerate plots from existing results"
-    )
-    analyze_parser.add_argument(
-        "--results-dir",
-        type=str,
-        help="Path to existing results directory (optional)",
+    subparsers.add_parser(
+        "analyze", help="Regenerate plots from existing results obtained using the provided config"
     )
 
     args = parser.parse_args()
@@ -172,7 +166,6 @@ def main() -> int:
         "run": cmd_run,
         "analyze": cmd_analyze,
     }
-    print(args)
 
     return commands[args.command](args)
 

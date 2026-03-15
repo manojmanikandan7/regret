@@ -128,16 +128,95 @@ def execute_experiments(config: dict[str, Any], plot: bool = True) -> None:
             )
 
 
-def analyze_results(config: dict[str, Any], results_dir: Path | None = None) -> None:
+def analyze_results(config: dict[str, Any]) -> None:
     """Regenerate plots from existing experiment results.
 
     Args:
         config: Validated config dictionary.
-        results_dir: Optional path to existing results directory.
-                     If None, uses default from config.
 
     Raises:
-        NotImplementedError: Analysis-only mode not yet implemented.
+        FileNotFoundError: If results directory or files not found.
     """
-    # TODO: Implement standalone analysis from saved results
-    raise NotImplementedError("Analysis-only mode will be implemented in the future.")
+    import json
+    from collections import defaultdict
+
+    # Determine results directory
+    results_dir = Path(
+        config["suite"].get("output", {}).get("raw_root", "results/raw")
+    )
+
+    if not results_dir.exists():
+        raise FileNotFoundError(f"Results directory not found: {results_dir}")
+
+    suite_name = config["suite"]["name"]
+    problem_specs = parse_problems(config)
+    algorithm_specs = parse_algorithms(config)
+
+    # Map slugs back to configured display names to preserve plot legends/labels.
+    problem_slug_to_name = {safe_slug(p.name): p.name for p in problem_specs}
+    algorithm_slug_to_name = {safe_slug(a.name): a.name for a in algorithm_specs}
+
+    # Scan for JSON files and group by (problem_name, problem_size)
+    results_by_problem = defaultdict(dict)
+    f_star_by_problem = {}
+    json_files = list(results_dir.glob("**/*.json"))
+
+    if not json_files:
+        raise FileNotFoundError(f"No JSON results found in {results_dir}")
+
+    print(f"[analyze] Found {len(json_files)} result files in {results_dir}")
+
+    # Load and parse all results
+    for json_file in json_files:
+        # Get path components for determining algorithm names
+        rel_parts = json_file.relative_to(results_dir).parts
+
+        with open(json_file, "r") as f:
+            data = json.load(f)
+
+        metadata = data["metadata"]
+        statistics = data["statistics"]
+        results = data["results"]
+
+        # Path shape:
+        #   <suite>/<problem>/<algorithm>/nX/bY.json
+        problem_slug = rel_parts[1]
+        algorithm_slug = rel_parts[2]
+
+        problem_name = problem_slug_to_name.get(problem_slug, metadata["problem"])
+        algorithm_name = algorithm_slug_to_name.get(
+            algorithm_slug, metadata["algorithm"]
+        )
+        n = int(metadata["problem_size"])
+        budget = int(metadata["budget"])
+
+        problem_key = (problem_name, n)
+        results_by_problem[problem_key][(algorithm_name, budget)] = results
+        f_star_by_problem[problem_key] = statistics.get("global_optimum")
+
+    # For each problem group, regenerate plots
+    for (problem_name, n), alg_budget_results in sorted(results_by_problem.items()):
+        print(f"\n[analyze] Generating plots for {problem_name} (n={n})")
+
+        # Use saved optimum from raw results when available.
+        f_star = f_star_by_problem.get((problem_name, n))
+
+        # Find max budget for this problem
+        max_budget = max(budget for _, budget in alg_budget_results.keys())
+
+        # Prepare results in the format expected by generate_plots
+        # Format: {(algorithm, budget): [list of run dicts]}
+        generate_plots(
+            suite_name=suite_name,
+            problem_name=problem_name,
+            n=n,
+            f_star=f_star,
+            results=alg_budget_results,
+            max_budget=max_budget,
+            output_dir=config["suite"]
+            .get("output", {})
+            .get("figures_root", "results/figures"),
+            plotting_config=config.get("plotting"),
+        )
+
+    print("\n[analyze] Analysis completed")
