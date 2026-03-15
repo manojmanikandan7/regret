@@ -24,7 +24,7 @@ class NKLandscape(Problem):
             indices = [i] + [(i + j + 1) % self.n for j in range(self.k)]
             key = sum(x[idx] * (2**j) for j, idx in enumerate(indices))
             fitness += self.contributions[i][key]
-        return fitness / self.n
+        return float(fitness / self.n)
 
     def get_optimum_value(self) -> float:
         # For NK landscapes, optimum is unknown a priori
@@ -34,7 +34,7 @@ class NKLandscape(Problem):
             for i in range(2**self.n):
                 x = np.array([int(b) for b in format(i, f"0{self.n}b")])
                 best = max(best, self.evaluate(x))
-            return best
+            return float(best)
         else:
             # Estimate: assume max contribution from each position
             return 1.0

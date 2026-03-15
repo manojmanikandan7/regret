@@ -6,6 +6,7 @@ matplotlib.use("Agg")  # Use non-interactive backend to avoid tkinter threading 
 
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
 import numpy as np
 
 from regret.core.metrics import (
@@ -27,7 +28,7 @@ plt.rcParams["figure.dpi"] = 100
 
 
 def _finalize_figure(
-    fig: plt.Figure,
+    fig: Figure,
     save_path: str | None = None,
     show: bool = True,
 ):
@@ -372,7 +373,7 @@ def plot_history(
         linestyle="--",
         linewidth=1,
         alpha=0.6,
-        label="f* (optimum)",
+        label="f* (Global Optimum)",
     )
     ax.set_xlabel("Evaluations")
     if series == "best":
@@ -493,6 +494,7 @@ def plot_regret_curves(
                     linestyle=":",
                     linewidth=1.4,
                     alpha=0.9,
+                    label=f"Mean time to first optimum ({alg})",
                 )
                 ax.scatter(
                     [mean_ttfo],
@@ -505,9 +507,6 @@ def plot_regret_curves(
                     zorder=4,
                 )
 
-    ax.axhline(
-        0.0, color="black", linestyle="--", linewidth=1, alpha=0.6, label="optimum"
-    )
     ax.set_xlabel("Evaluations")
     if series == "instantaneous":
         ax.set_ylabel("Instantaneous regret")
