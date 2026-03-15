@@ -4,7 +4,7 @@ suite:
   runs: 50
   mode: "full"
   parallel: true
-  budgets: [100, 500, 1000, 5000, 10000]
+  budgets: [200, 400, 600, 800, 1000, 1200, 1400, 1600, 1800, 2000] # This range is quite appropriate for the baseline and problem size
   output:
     raw_root: "results/raw"
     figures_root: "results/figures"
@@ -31,16 +31,16 @@ problems:
       n: 100
       k: 3
 
-  - name: "Trap"
+  - name: "Trap-3"
     class: "Trap"
     params:
       n: 100
-      k: 3
+      k: 10
 
   - name: "Bin-Val"
     class: "BinVal"
     params:
-      n: 60
+      n: 65
 
 algorithms:
   - name: "RLS"
@@ -68,7 +68,8 @@ algorithms:
         T_func:
           type: "logarithmic"
           params:
-            d: 4.0
+            # NOTE: Larger d slows cooling, but better at escaping local optima
+            d: 2.0
       by_problem: {}
 
   - name: "SA-Lin"
