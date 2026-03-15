@@ -40,12 +40,14 @@ class SimulatedAnnealing(Algorithm):
         neighbour[i] = 1 - neighbour[i]
 
         neighbour_value = self.problem.evaluate(neighbour)
-        self.evaluations += 1
 
         # NOTE: Capping down at a minimum temperature
         # TODO: Explore if it is better to stop early
         # (since it essentially reached absolute zero)
         T = max(self.min_T, self.T_func(self.evaluations))
+        # Since evals = 1 initially, due to the reset, 
+        # incremented after temperature calculation to avoid one-off deviation
+        self.evaluations += 1
         delta = neighbour_value - self.current_value
 
         # Metropolis acceptance criterion

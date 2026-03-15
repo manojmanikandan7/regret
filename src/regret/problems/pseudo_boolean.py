@@ -63,36 +63,33 @@ class BinVal(Problem):
     """Binary value: weighted sum with exponential weights."""
 
     def evaluate(self, x: np.ndarray) -> float:
-        weights = 2 ** np.arange(self.n)
-        return float(np.dot(x, weights))
+        # Use Python integers (arbitrary precision) to avoid overflow/precision loss.
+        weights = [2**i for i in range(self.n)]
+        return float(sum(int(x[i]) * weights[i] for i in range(self.n)))
 
     def get_optimum_value(self) -> float:
         return float(2**self.n - 1)
+        # NOTE: For large n this float is rounded, but it equals evaluate(all-ones)
+        # by the same rounding, so regret still reaches 0 correctly.
 
 
 class Trap(Problem):
     """
-    Trap function with deceptive attractor at all zeros.
+    Trap function (Deb & Goldberg, FOGA 1992, Eq. 10).
 
-    The function has a local optimum at all zeros and a global optimum
-    at all ones. The gradient points towards the trap (all zeros) unless
-    the solution has more than (n - k) ones.
+    Deceptive attractor at all zeros (value = n - k), global optimum at all
+    ones (value = n), trough at u (i.e., number of ones) = n - k (value = 0). k = 1 is the classical
+    fully deceptive trap: f(u) = n-1-u for u < n, f(n) = n.
     """
 
-    def __init__(self, n: int, k: int | None = None):
-        self.k = k if k is not None else n  # Default: full trap
+    def __init__(self, n: int, k: int = 1):
+        self.k = k
         super().__init__(n)
 
     def evaluate(self, x: np.ndarray) -> float:
-        ones = np.sum(x)
-        if ones == self.n:
-            return float(self.n)
-        elif ones > self.n - self.k:
-            # Gradient towards ones (escape region)
-            return float(ones)
-        else:
-            # Deceptive gradient towards zeros
-            return float(self.n - self.k - ones)
+        ones = int(np.sum(x))
+        z = self.n - self.k
+        return float(z - ones if ones <= z else self.n * (ones - z) / self.k)
 
     def get_optimum_value(self) -> float:
         return float(self.n)

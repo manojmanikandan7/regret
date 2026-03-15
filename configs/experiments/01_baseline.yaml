@@ -31,7 +31,7 @@ problems:
       n: 100
       k: 3
 
-  - name: "Trap-3"
+  - name: "Trap-10"
     class: "Trap"
     params:
       n: 100

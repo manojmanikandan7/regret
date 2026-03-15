@@ -60,7 +60,7 @@ problems:
     class: "HIFF"
     params:
       # Hierarchical if and only if requires n to be a power of 2.
-      # Optimum = 2n * log2(n) = 2*64*6 = 768.
+      # Optimum = n * (log2(n) + 1) = 64*7 = 448.
       n: 64
 
   # Combinatorial 
@@ -254,4 +254,4 @@ plotting:
     ttfo_distribution:
       enabled: true
       filename: "history_ttfo_markers.pdf"
-      # Note: MaxkSAT will produce empty TTFO plots — expected and worth documenting.
+      # Note: MaxkSAT will produce empty TTFO plots.

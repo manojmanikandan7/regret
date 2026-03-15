@@ -82,3 +82,5 @@ class RLSExploration(Algorithm):
         if self.current_value > self.best_value:
             self.best_value = self.current_value
             self.best_solution = self.current.copy()
+
+        self._record_history(self.current_value)
