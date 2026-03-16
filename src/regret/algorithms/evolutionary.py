@@ -12,10 +12,18 @@ class OnePlusOneEA(Algorithm):
         mutation_rate: float | None = None,
         seed: int | None = None,
     ):
+        """Initialize (1+1)-EA with mutation rate.
+
+        Args:
+            problem: Problem to optimize.
+            mutation_rate: Bit-flip rate; defaults to 1/n.
+            seed: Optional RNG seed for reproducibility.
+        """
         self.mutation_rate = mutation_rate or (1.0 / problem.n)
         super().__init__(problem, seed)
 
     def reset(self):
+        """Initialize state, candidate, and trajectory for a fresh run."""
         super().reset()
         self.current = self.rng.integers(0, 2, size=self.problem.n)
         self.current_value = self.problem.evaluate(self.current)
@@ -25,6 +33,7 @@ class OnePlusOneEA(Algorithm):
         self._record_history(self.current_value)
 
     def step(self):
+        """Perform one mutation step and accept non-worsening offspring."""
         offspring = self.current.copy()
         for i in range(self.problem.n):
             # Flips a bit with the prob of mutation_rate
@@ -56,12 +65,22 @@ class MuPlusLambdaEA(Algorithm):
         mutation_rate: float | None = None,
         seed: int | None = None,
     ):
+        """Initialize (μ+λ)-EA with population and mutation settings.
+
+        Args:
+            problem: Problem to optimize.
+            mu: Parent population size.
+            lmbda: Offspring population size.
+            mutation_rate: Bit-flip rate; defaults to 1/n.
+            seed: Optional RNG seed for reproducibility.
+        """
         self.mu = mu
         self.lmbda = lmbda
         self.mutation_rate = mutation_rate or (1.0 / problem.n)
         super().__init__(problem, seed)
 
     def reset(self):
+        """Initialize population, fitness, and tracking for a fresh run."""
         super().reset()
         # Initialize population
         self.population = [
@@ -80,6 +99,7 @@ class MuPlusLambdaEA(Algorithm):
         self._record_history(self.best_value)
 
     def step(self):
+        """Generate offspring, evaluate, and select next population."""
         # Generate offspring
         offspring = []
         offspring_fitness = []

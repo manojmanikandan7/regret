@@ -6,10 +6,11 @@ matplotlib.use("Agg")  # Use non-interactive backend to avoid tkinter threading 
 
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
-from matplotlib.figure import Figure
 import numpy as np
+from matplotlib.figure import Figure
 
 from regret.core.metrics import (
+    cumulative_regret,
     history_best_series,
     history_current_series,
     instantaneous_regret,
@@ -355,6 +356,7 @@ def plot_history(
                     linestyle=":",
                     linewidth=1.4,
                     alpha=0.9,
+                    label=f"Mean time to first optimum ({alg})",
                 )
                 ax.scatter(
                     [mean_ttfo],

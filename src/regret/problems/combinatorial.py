@@ -9,6 +9,14 @@ class MaxkSAT(Problem):
     def __init__(
         self, n: int, m: int | None = None, k: int = 3, seed: int | None = None
     ):
+        """Initialize random k-SAT instance and generate clauses.
+
+        Args:
+            n: Number of boolean variables.
+            m: Number of clauses; defaults to 4n.
+            k: Clause width.
+            seed: Optional RNG seed for reproducibility.
+        """
         self.k = k
         self.m = (
             m or 4 * n
@@ -26,6 +34,14 @@ class MaxkSAT(Problem):
             self.clauses.append((variables, negations))
 
     def evaluate(self, x: np.ndarray) -> float:
+        """Count satisfied clauses for a candidate assignment.
+
+        Args:
+            x: Binary assignment vector of length n.
+
+        Returns:
+            Number of satisfied clauses as a float.
+        """
         satisfied = 0
         for variables, negations in self.clauses:
             clause_sat = False
@@ -39,5 +55,6 @@ class MaxkSAT(Problem):
         return float(satisfied)
 
     def get_optimum_value(self) -> float:
+        """Return theoretical upper bound of satisfied clauses."""
         # For random MaxSAT, optimum is typically all clauses satisfied
         return float(self.m)

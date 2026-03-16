@@ -7,9 +7,18 @@ class OneMax(Problem):
     """Count number of ones in binary string."""
 
     def evaluate(self, x: np.ndarray) -> float:
+        """Compute fitness as the count of ones.
+
+        Args:
+            x: Binary vector.
+
+        Returns:
+            Number of ones in the vector.
+        """
         return float(np.sum(x))
 
     def get_optimum_value(self) -> float:
+        """Return the global optimum value."""
         return float(self.n)
 
 
@@ -17,12 +26,21 @@ class LeadingOnes(Problem):
     """Count leading ones before first zero."""
 
     def evaluate(self, x: np.ndarray) -> float:
+        """Count leading ones until the first zero.
+
+        Args:
+            x: Binary vector.
+
+        Returns:
+            Length of the leading-ones prefix.
+        """
         for i in range(self.n):
             if x[i] == 0:
                 return float(i)
         return float(self.n)
 
     def get_optimum_value(self) -> float:
+        """Return the global optimum value."""
         return float(self.n)
 
 
@@ -33,10 +51,24 @@ class Jump(Problem):
     """
 
     def __init__(self, n: int, k: int = 3):
+        """Initialize Jump problem with dimension and gap.
+
+        Args:
+            n: Dimension of the bitstring.
+            k: Gap width defining the jump valley.
+        """
         self.k = k
         super().__init__(n)
 
     def evaluate(self, x: np.ndarray) -> float:
+        """Evaluate Jump fitness with the defined gap of size k.
+
+        Args:
+            x: Binary vector.
+
+        Returns:
+            Fitness value with valley penalization near the optimum.
+        """
         ones = np.sum(x)
         # If there are n ones or if the number of ones is less than or equals to (n - k), return the ones
         # Else, return (n - number of ones)
@@ -45,6 +77,7 @@ class Jump(Problem):
         return float(self.n - ones)
 
     def get_optimum_value(self) -> float:
+        """Return the global optimum value."""
         return float(self.n)
 
 
@@ -52,10 +85,19 @@ class TwoMax(Problem):
     """Two global optima: all zeros or all ones."""
 
     def evaluate(self, x: np.ndarray) -> float:
+        """Evaluate fitness as distance to either all-ones or all-zeros optimum.
+
+        Args:
+            x: Binary vector.
+
+        Returns:
+            Fitness favoring the closer global optimum.
+        """
         ones = np.sum(x)
         return float(max(ones, self.n - ones))
 
     def get_optimum_value(self) -> float:
+        """Return the global optimum value."""
         return float(self.n)
 
 
@@ -63,11 +105,20 @@ class BinVal(Problem):
     """Binary value: weighted sum with exponential weights."""
 
     def evaluate(self, x: np.ndarray) -> float:
+        """Compute weighted binary value of the bitstring given by x.
+
+        Args:
+            x: Binary vector.
+
+        Returns:
+            Numeric value of the bitstring.
+        """
         # Use Python integers (arbitrary precision) to avoid overflow/precision loss.
         weights = [2**i for i in range(self.n)]
         return float(sum(int(x[i]) * weights[i] for i in range(self.n)))
 
     def get_optimum_value(self) -> float:
+        """Return the maximum achievable binary value."""
         return float(2**self.n - 1)
         # NOTE: For large n this float is rounded, but it equals evaluate(all-ones)
         # by the same rounding, so regret still reaches 0 correctly.
@@ -75,7 +126,7 @@ class BinVal(Problem):
 
 class Trap(Problem):
     """
-    Trap function (Deb & Goldberg, FOGA 1992, Eq. 10).
+    Trap function (Deb & Goldberg, FOGA 1992).
 
     Deceptive attractor at all zeros (value = n - k), global optimum at all
     ones (value = n), trough at u (i.e., number of ones) = n - k (value = 0). k = 1 is the classical
@@ -83,15 +134,31 @@ class Trap(Problem):
     """
 
     def __init__(self, n: int, k: int = 1):
+        """Initialize Trap with dimension and deception width.
+
+        Args:
+            n: Dimension of the bitstring.
+            k: Width of the deceptive region. 
+               (n - k) gives the unitation z, at which the slope change occurs.
+        """
         self.k = k
         super().__init__(n)
 
     def evaluate(self, x: np.ndarray) -> float:
+        """Evaluate Trap fitness accounting for the deception width k.
+
+        Args:
+            x: Binary vector.
+
+        Returns:
+            Fitness penalizing solutions near the deceptive attractor.
+        """
         ones = int(np.sum(x))
         z = self.n - self.k
         return float(z - ones if ones <= z else self.n * (ones - z) / self.k)
 
     def get_optimum_value(self) -> float:
+        """Return the global optimum value."""
         return float(self.n)
 
 
@@ -104,10 +171,24 @@ class Plateau(Problem):
     """
 
     def __init__(self, n: int, k: int = 3):
+        """Initialize Plateau with dimension and plateau width.
+
+        Args:
+            n: Dimension of the bitstring.
+            k: Width of the flat fitness region.
+        """
         self.k = k
         super().__init__(n)
 
     def evaluate(self, x: np.ndarray) -> float:
+        """Evaluate OneMax with a plateau near the optimum.
+
+        Args:
+            x: Binary vector.
+
+        Returns:
+            Fitness value with flat region before the optimum.
+        """
         ones = np.sum(x)
         if ones == self.n:
             return float(self.n)
@@ -118,6 +199,7 @@ class Plateau(Problem):
             return float(ones)
 
     def get_optimum_value(self) -> float:
+        """Return the global optimum value."""
         return float(self.n)
 
 
@@ -130,17 +212,28 @@ class HIFF(Problem):
     """
 
     def __init__(self, n: int):
+        """Initialize HIFF with a power-of-two dimension.
+
+        Args:
+            n: Dimension of the bitstring; must be a power of two.
+
+        Raises:
+            ValueError: If n is not a power of two or is less than 2.
+        """
         # Ensure n is a power of 2
         if n & (n - 1) != 0 or n < 2:
             raise ValueError("HIFF requires n to be a power of 2")
         super().__init__(n)
 
     def _hiff_value(self, block: np.ndarray) -> tuple[float, int | None]:
-        """
-        Compute HIFF value for a block.
+        """Recursively compute HIFF contribution for a block.
 
-        Returns (fitness contribution, consensus value or None).
-        Consensus is 0 if all zeros, 1 if all ones, None otherwise.
+        Args:
+            block: Subsequence of the bitstring.
+
+        Returns:
+            Tuple of (fitness contribution, consensus bit or None).
+            Consensus is 0 if all zeros, 1 if all ones, None otherwise.
         """
         if len(block) == 1:
             return 1.0, int(block[0])
@@ -159,10 +252,19 @@ class HIFF(Problem):
             return fitness, None
 
     def evaluate(self, x: np.ndarray) -> float:
+        """Evaluate HIFF fitness for the full bitstring.
+
+        Args:
+            x: Binary vector.
+
+        Returns:
+            Fitness value normalized by hierarchy contributions.
+        """
         fitness, _ = self._hiff_value(x)
         return fitness
 
     def get_optimum_value(self) -> float:
+        """Return the analytical optimum value for HIFF."""
         # Optimum is when all bits are identical (all 0s or all 1s)
         # At each level k (0 to log2(n)), we get n contributions
         # Total = n * (log2(n) + 1)

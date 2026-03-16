@@ -4,7 +4,14 @@ Trajectory = list[tuple[int, float, float]]
 
 
 def compute_statistics(regrets: np.ndarray) -> dict:
-    """Compute summary statistics for regret values."""
+    """Compute summary statistics for regrets.
+
+    Args:
+        regrets: Array of regret values.
+
+    Returns:
+        Mapping with basic summary statistics.
+    """
     return {
         "mean": float(np.mean(regrets)),
         "median": float(np.median(regrets)),
@@ -17,20 +24,38 @@ def compute_statistics(regrets: np.ndarray) -> dict:
 
 
 def probability_optimal(regrets: np.ndarray, tolerance: float = 1e-9) -> float:
-    """Compute probability that optimum was found."""
+    """Estimate probability of reaching the optimum.
+
+    Args:
+        regrets: Array of regret values.
+        tolerance: Threshold for considering a run optimal.
+
+    Returns:
+        Fraction of runs with regret within the tolerance.
+    """
     return float(np.mean(regrets <= tolerance))
 
 
 def history_current_series(trajectory: Trajectory) -> list[tuple[int, float]]:
-    """
-    Return (evaluations, current_value) pairs from a trajectory.
+    """Extract current-value series from a trajectory.
+
+    Args:
+        trajectory: Sequence of (evaluations, current_value, best_value) tuples.
+
+    Returns:
+        List of (evaluations, current_value) pairs.
     """
     return [(t, current_value) for t, current_value, _ in trajectory]
 
 
 def history_best_series(trajectory: Trajectory) -> list[tuple[int, float]]:
-    """
-    Return (evaluations, best_value) pairs from a trajectory.
+    """Extract best-value series from a trajectory.
+
+    Args:
+        trajectory: Sequence of (evaluations, current_value, best_value) tuples.
+
+    Returns:
+        List of (evaluations, best_value) pairs.
     """
     return [(t, best_value) for t, _, best_value in trajectory]
 
@@ -39,9 +64,14 @@ def history_best_series(trajectory: Trajectory) -> list[tuple[int, float]]:
 
 
 def simple_regret(solution_value: float, f_star: float) -> float:
-    """
-    Compute simple regret according to the final solution value
-    Could be the best value so far or the current value.
+    """Compute simple regret for a final solution value. 
+
+    Args:
+        solution_value: Objective value of the returned solution.
+        f_star: Global optimum value.
+
+    Returns:
+        Difference between the optimum and the solution value.
     """
     return f_star - solution_value
 
@@ -49,11 +79,15 @@ def simple_regret(solution_value: float, f_star: float) -> float:
 def instantaneous_regret(
     trajectory: Trajectory, f_star: float, use_best: bool = False
 ) -> list[tuple[int, float]]:
-    """
-    Return (evaluations, instantaneous regret) pairs from a trajectory
-    at each evaluation (time) point.
+    """Compute instantaneous regret series for a trajectory at each evaluation (time) point.
 
-    By default uses current_value; set use_best=True to use best_value.
+    Args:
+        trajectory: Sequence of (evaluations, current_value, best_value) tuples.
+        f_star: Global optimum value.
+        use_best: If True, use best_value; otherwise use current_value.
+
+    Returns:
+        List of (evaluation, instantaneous regret) pairs.
     """
     if use_best:
         return [(t, f_star - best_value) for t, _, best_value in trajectory]
@@ -63,15 +97,19 @@ def instantaneous_regret(
 def cumulative_regret(
     trajectory: Trajectory, f_star: float, use_best: bool = False
 ) -> list[tuple[int, float]]:
-    """
-    Return (evaluations, cumulative regret) pairs from a trajectory.
-
-    Computes the running sum of instantaneous regrets using a left-hold
+    """Compute cumulative regret series for a trajectory.
+    cumulative regret is the running sum of instantaneous regrets using a left-hold
     approximation over the evaluation grid. At each time point t, the
     cumulative regret is the integral of instantaneous regret from
     time 0 to t.
+    
+    Args:
+        trajectory: Sequence of (evaluations, current_value, best_value) tuples.
+        f_star: Global optimum value.
+        use_best: If True, use best value obtained so far (`best_value`); otherwise use current_value.
 
-    By default uses current_value; set use_best=True to use best_value.
+    Returns:
+        List of (evaluation, cumulative regret) pairs using left-hold integration.
     """
     if len(trajectory) < 2:
         return [(trajectory[0][0], 0.0)] if trajectory else []
@@ -92,11 +130,15 @@ def cumulative_regret(
 
 
 def ttfo(trajectory: Trajectory, f_star: float, tolerance: float = 1e-9) -> int | None:
-    """
-    Time to first optimum (TTFO) based on best_value in the trajectory.
+    """Compute time to first optimum (TTFO).
 
-    Returns the first evaluation index at which the optimum is reached,
-    or None if not found within the trajectory.
+    Args:
+        trajectory: Sequence of (evaluations, current_value, best_value) tuples.
+        f_star: Global optimum value.
+        tolerance: Allowed deviation from the optimum.
+
+    Returns:
+        Evaluation index of first optimum, or None if not reached.
     """
     for t, _, best_value in trajectory:
         if abs(best_value - f_star) <= tolerance:

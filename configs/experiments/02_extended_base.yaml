@@ -1,6 +1,6 @@
 suite:
   name: "02_extended"
-  description: "Extended exploratory benchmark — pseudo-boolean, combinatorial, and landscape problems"
+  description: "Extended exploratory benchmark - pseudo-boolean, combinatorial, and landscape problems"
   runs: 30          # Reduced from 50; NK init is expensive, and 30 is sufficient for variance estimates
   mode: "full"     
   parallel: true
@@ -84,7 +84,7 @@ problems:
     class: "NKLandscape"
     params:
       n: 20
-      k: 4      # Higher epistasis; highly rugged — expect all algorithms to struggle
+      k: 4      # Higher epistasis; highly rugged - expect all algorithms to struggle
       seed: 42
 
 algorithms:
