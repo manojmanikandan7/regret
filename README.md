@@ -1,0 +1,251 @@
+# Regret - A Benchmarking Framework for Black-Box Combinatorial Optimisation
+
+> *Studying regret-based analysis as an empirical alternative to Drift Analysis for black-box optimisation algorithms on pseudo-boolean and combinatorial problems.*
+
+---
+
+## Motivation & Research Context
+
+Classical theoretical analysis of randomised search heuristics has long relied on **Drift Analysis** (Lengler, 2018) - a mathematical framework that bounds expected hitting times by studying how much an algorithm "drifts" towards the optimum per step. While this practice is standard, drift analysis is:
+
+- Difficult to apply empirically across diverse problem landscapes;
+- Primarily suited to convergence-time arguments rather than characterising *quality* of intermediate solutions.
+- A good indicator of bounds to sample (or 'drift' toward) the optimum; 
+  however, it does not provide information on the asymtotic performance of the algorithm
+
+This project investigates whether **regret**, a metric borrowed from reinforcement learning (utilized in online learning and bandits), can serve as a practical, empirically-grounded alternative for characterising algorithm behaviour across the same domain. Three forms of regret are tracked:
+
+| Regret Type | Definition |
+|---|---|
+| **Simple Regret** | `f* − f(best)` at the end of a budget |
+| **Instantaneous Regret** | `f* − f(x_t)` at each evaluation step `t` |
+| **Cumulative Regret** | Running integral of instantaneous regret over time |
+
+The domain of analysis for this project: **binary combinatorial black-box optimisation** over inputs from `{0, 1}^n`, where objective function evaluations are the primary cost. All optimisation problems are **maximising**.
+
+### Algorithms Under Study
+
+The algorithms studied are those whose theoretical behaviour is well-characterised by drift analysis, making them natural comparison targets:
+
+- **RLS** - Randomised Local Search (stochastic hill climber, 1-bit flip);
+- **RLSExploration** - RLS augmented with an ε-greedy random restart mechanism;
+- **(1+1)-EA** - Evolutionary algorithm with standard bit mutation at rate `1/n`;
+- **(μ+λ)-EA** - Generalised evolutionary strategy with configurable population sizes (no crossover);
+- **Simulated Annealing** - With logarithmic, linear, and exponential cooling schedules.
+
+---
+
+## Prerequisites
+
+- **Python** ≥ 3.12 (see `.python-version`)
+- **[uv](https://docs.astral.sh/uv/)** - recommended package manager
+
+Install dependencies:
+
+```bash
+uv sync
+```
+
+Or with pip:
+
+```bash
+pip install -e .
+```
+
+Core dependencies: `numpy`, `scipy`, `matplotlib`, `pandas`, `pyyaml`, `jsonschema`, `tqdm`.
+
+---
+
+## Usage
+
+All experiments are driven through a single CLI entry point:
+
+```bash
+run_experiment <config.yaml> <command>
+```
+
+Or equivalently:
+
+```bash
+python -m regret.experiments <config.yaml> <command>
+```
+
+### Commands
+
+| Command | Description |
+|---|---|
+| `validate` | Parse and validate a YAML config without running anything |
+| `plan` | Print a dry-run summary: problem/algorithm combinations, total runs, budgets |
+| `run` | Execute all experiments and generate plots |
+| `run --no-plot` | Execute experiments but skip plot generation |
+| `analyze` | Regenerate all plots from previously saved JSON results |
+
+### Example
+
+```bash
+# Validate config
+run_experiment configs/experiments/01_baseline.yaml validate
+
+# Preview execution plan
+run_experiment configs/experiments/01_baseline.yaml plan
+
+# Run full experiment suite
+run_experiment configs/experiments/01_baseline.yaml run
+
+# Regenerate plots only (no re-running)
+run_experiment configs/experiments/01_baseline.yaml analyze
+```
+
+---
+
+## Project Structure
+
+```
+regret/
+├── configs/
+│   └── experiments/
+│       ├── 01_baseline.yaml          # Core pseudo-boolean benchmark suite
+│       └── 02_extended_base.yaml     # Extended suite: combinatorial + NK landscapes
+│
+├── results/
+│   ├── raw/                          # JSON output from each experiment run
+│   └── figures/                      # Generated PDF plots, organised by suite/problem/n
+│
+└── src/regret/
+    ├── core/
+    │   ├── base.py                   # Abstract base classes: Problem, Algorithm
+    │   └── metrics.py                # Regret computations, trajectory helpers
+    │
+    ├── problems/
+    │   ├── pseudo_boolean.py         # OneMax, LeadingOnes, Jump, TwoMax, BinVal, Trap, Plateau, HIFF
+    │   ├── combinatorial.py          # MaxkSAT
+    │   └── landscapes.py             # NK-Landscape
+    │
+    ├── algorithms/
+    │   ├── local_search.py           # RLS, RLSExploration
+    │   ├── evolutionary.py           # OnePlusOneEA, MuPlusLambdaEA
+    │   └── annealing.py              # SimulatedAnnealing + cooling schedules
+    │
+    ├── analysis/
+    │   ├── plotting.py               # All matplotlib-based plot functions
+    │   ├── statistics.py             # Mann-Whitney U, Wilcoxon, Cohen's d, bootstrap CI
+    │   └── tables.py                 # Summary tables + LaTeX export
+    │
+    └── experiments/
+        ├── __init__.py               # PROBLEM_REGISTRY, ALGORITHM_REGISTRY, COOLING_REGISTRY
+        ├── schema.py                 # JSON Schema definition for YAML configs
+        ├── validation.py             # Schema + semantic validation pipeline
+        ├── orchestration.py          # Execution planning and dispatch
+        ├── runner.py                 # ExperimentRunner (serial/parallel), result persistence
+        ├── utils.py                  # Config parsing, slug generation, plot dispatch
+        └── cli.py                    # argparse CLI entry point
+```
+
+---
+
+## Configuration Pipeline
+
+Experiments are fully specified via YAML files. The pipeline is:
+
+```
+YAML File → load_config → validate_schema (JSON Schema) → validate_semantic (registry checks) → parse_problems / parse_algorithms → execute / generate_plots
+```
+
+### Config Structure
+
+```yaml
+suite:
+  name: "my_experiment"
+  runs: 50                        # Independent runs per (algorithm, problem, budget) triple
+  mode: "full"                    # "full" saves trajectories; "lite" saves stats only
+  parallel: true
+  budgets: [200, 400, ..., 2000]
+  output:
+    raw_root: "results/raw"
+    figures_root: "results/figures"
+
+problems:
+  - name: "Jump-3"
+    class: "Jump"                 # Must be in PROBLEM_REGISTRY
+    params:
+      n: 100
+      k: 3
+
+algorithms:
+  - name: "SA-Log"
+    class: "SimulatedAnnealing"   # Must be in ALGORITHM_REGISTRY
+    args:
+      defaults:
+        T_func:
+          type: "logarithmic"     # Must be in COOLING_REGISTRY
+          params:
+            d: 2.0
+      by_problem:                 # Per-problem parameter overrides
+        Jump-3:
+          T_func:
+            type: "logarithmic"
+            params:
+              d: 6.0
+
+plotting:
+  enabled: true
+  plots:
+    regret_curves:
+      enabled: true
+      filename: "regret_curves.pdf"
+      log_scale: true
+    # ... (see configs/ for full reference)
+```
+
+### Key Design Decisions
+
+**Registry pattern.** Problems and algorithms are registered by string name in `experiments/__init__.py`. This allows YAML configs to reference classes symbolically, and the validation layer catches typos before any computation begins.
+
+**Schema-first validation.** A JSON Schema (`schema.py`) is checked before any semantic validation. This provides clear, structured error messages for malformed configs independent of Python exceptions.
+
+**`defaults` + `by_problem` merging.** Algorithm arguments support a two-level override system: `defaults` apply to all problems, and `by_problem` keys override them per problem using a deep merge. This makes it easy to tune SA cooling schedules or RLSExploration epsilon values for rugged landscapes without duplicating algorithm entries.
+
+**`mode: full` vs `mode: lite`.** In `full` mode, every step of every run is recorded as a `(evaluations, current_value, best_value)` trajectory tuple. This enables instantaneous and cumulative regret plots and TTFO analysis but increases storage significantly. In `lite` mode, only final statistics are saved, which can be suitable for large-scale sweeps.
+
+**Parallel execution.** When `parallel: true`, each independent run is dispatched via `ProcessPoolExecutor`. Seeds are fixed per run index (0, 1, ..., runs-1), ensuring full reproducibility.
+
+**Cooling schedule resolution.** SA cooling schedules are specified declaratively in YAML and resolved at runtime via `resolve_cooling()` in `utils.py`. Supported types: `logarithmic` (T = d/log(t+1)), `linear`, and `exponential`.
+
+**TTFO markers.** All history and regret plots optionally overlay a "time to first optimum" marker, a vertical dotted line at the mean TTFO across runs, with a point on the mean curve. This provides visual alignment between convergence speed and the regret trajectory.
+
+---
+
+## Problems
+
+| Name | Class | Description | Optimum |
+|---|---|---|---|
+| OneMax | `OneMax` | Count of ones | n |
+| LeadingOnes | `LeadingOnes` | Length of leading-ones prefix | n |
+| TwoMax | `TwoMax` | max(ones, zeros) - bioptimal (symmetrical optimum analysis) | n |
+| Jump-k | `Jump` | OneMax with a deceptive valley of width k | n |
+| Trap-k | `Trap` | Fully deceptive; gradient points away from optimum | n |
+| BinVal | `BinVal` | Exponentially weighted binary value | 2^n − 1 |
+| Plateau-k | `Plateau` | OneMax with a flat plateau near the top | n |
+| HIFF | `HIFF` | Hierarchical if-and-only-if (n must be power of 2) | n·(log₂n + 1) |
+| MaxkSAT | `MaxkSAT` | Random k-SAT clause satisfaction (maximisation) | m (all clauses) |
+| NK-k | `NKLandscape` | Tunable-ruggedness fitness landscape | exhaustive search (n ≤ 20) |
+
+---
+
+## Output & Plots
+
+Results are stored as structured JSON under `results/raw/<suite>/<problem>/<algorithm>/n<N>/b<budget>.json`, containing metadata, summary statistics, and (in `full` mode) per-run trajectories.
+
+Figures are written to `results/figures/<suite>/<problem>/n<N>/` and organised into subdirectories:
+
+- `aggregate/` - regret curves, convergence probability, comparison heatmap;
+- `budget_<B>/` - boxplots and performance profiles at a specific budget;
+- `history/` - value trajectories, instantaneous/cumulative regret curves, TTFO distribution.
+
+All figures are saved as PDF at 300 DPI.
+
+---
+
+## References
+
+- Lengler, J. (2018). *Drift Analysis*. [https://doi.org/10.48550/arXiv.1712.00964](https://doi.org/10.48550/arXiv.1712.00964)
