@@ -55,6 +55,12 @@ class MaxkSAT(Problem):
         return float(satisfied)
 
     def get_optimum_value(self) -> float:
-        """Return theoretical upper bound of satisfied clauses."""
+        """
+        Return theoretical upper bound of satisfied clauses.
+
+        IMPORTANT NOTE: the theoretical upper bound is very rarely achievable in practice. 
+        This means instantaneous regret will almost never reach zero, and cumulative regret will appear artificially high.
+        The choice for the optimum chosen is intentional, but not appropriate for practical analyis.
+        """
         # For random MaxSAT, optimum is typically all clauses satisfied
         return float(self.m)

@@ -44,7 +44,10 @@ class RLS(Algorithm):
 
 
 class RLSExploration(Algorithm):
-    """RLS with exploration probability."""
+    """
+    RLS with exploration probability.
+    Hoos, H. H., & Stützle, T. (2004). Stochastic Local Search: Foundations and Applications. Chapter 2, Section 2.2.
+    """
 
     def __init__(
         self,

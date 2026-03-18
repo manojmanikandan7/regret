@@ -73,12 +73,12 @@ class Jump(Problem):
         # If there are n ones or if the number of ones is less than or equals to (n - k), return the ones
         # Else, return (n - number of ones)
         if ones == self.n or ones <= self.n - self.k:
-            return float(ones)
+            return float(ones) + self.k
         return float(self.n - ones)
 
     def get_optimum_value(self) -> float:
         """Return the global optimum value."""
-        return float(self.n)
+        return float(self.n + self.k)
 
 
 class TwoMax(Problem):

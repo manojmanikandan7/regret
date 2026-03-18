@@ -14,7 +14,6 @@ from regret.core.metrics import (
     history_best_series,
     history_current_series,
     instantaneous_regret,
-    cumulative_regret,
 )
 
 # Set publication-quality defaults
@@ -25,7 +24,7 @@ plt.rcParams["axes.titlesize"] = 14
 plt.rcParams["xtick.labelsize"] = 10
 plt.rcParams["ytick.labelsize"] = 10
 plt.rcParams["legend.fontsize"] = 10
-plt.rcParams["figure.dpi"] = 100
+plt.rcParams["figure.dpi"] = 400
 
 
 def _finalize_figure(
