@@ -121,6 +121,11 @@ CONFIG_SCHEMA = {
             "type": "object",
             "properties": {
                 "enabled": {"type": "boolean"},
+                "budget_for_plots": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Budget used for budget-specific figures (defaults to max suite budget)",
+                },
                 "save": {"type": "boolean"},
                 "layout": {"type": "object"},
                 "titles": {"type": "object"},

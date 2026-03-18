@@ -112,6 +112,17 @@ def validate_semantic(config: dict[str, Any]) -> None:
                 overrides, f"algorithms[{idx}].args.by_problem[{prob_name}]"
             )
 
+    # Validate optional plotting budget selector
+    plotting_cfg = config.get("plotting", {})
+    selected_budget = plotting_cfg.get("budget_for_plots")
+    if selected_budget is not None:
+        suite_budgets = {int(b) for b in config.get("suite", {}).get("budgets", [])}
+        if int(selected_budget) not in suite_budgets:
+            raise ValidationError(
+                "plotting.budget_for_plots: must be one of suite.budgets "
+                f"{sorted(suite_budgets)}"
+            )
+
 
 def _validate_cooling_schedule(args_dict: dict[str, Any], path: str) -> None:
     """Validate cooling schedule specification in algorithm args.

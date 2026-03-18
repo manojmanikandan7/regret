@@ -123,6 +123,7 @@ def execute_experiments(config: dict[str, Any], plot: bool = True) -> None:
                 f_star=getattr(problem, "f_star", None),
                 results=all_results,
                 max_budget=max(budgets),
+                budget_for_plots=config.get("plotting", {}).get("budget_for_plots"),
                 output_dir=figures_root,
                 plotting_config=config.get("plotting"),
             )
@@ -141,9 +142,7 @@ def analyze_results(config: dict[str, Any]) -> None:
     from collections import defaultdict
 
     # Determine results directory
-    results_dir = Path(
-        config["suite"].get("output", {}).get("raw_root", "results/raw")
-    )
+    results_dir = Path(config["suite"].get("output", {}).get("raw_root", "results/raw"))
 
     if not results_dir.exists():
         raise FileNotFoundError(f"Results directory not found: {results_dir}")
@@ -213,6 +212,7 @@ def analyze_results(config: dict[str, Any]) -> None:
             f_star=f_star,
             results=alg_budget_results,
             max_budget=max_budget,
+            budget_for_plots=config.get("plotting", {}).get("budget_for_plots"),
             output_dir=config["suite"]
             .get("output", {})
             .get("figures_root", "results/figures"),
