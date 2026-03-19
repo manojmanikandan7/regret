@@ -84,22 +84,23 @@ class RLSExploration(Algorithm):
             self.base_epsilon / self.evaluations if self.decay else self.base_epsilon
         )
 
-        if self.rng.random() < epsilon:
-            # Exploration: random move
-            neighbor = self.rng.integers(0, 2, size=self.problem.n)
-        else:
-            # Exploitation: local search
-            neighbor = self.current.copy()
-            i = self.rng.integers(0, self.problem.n)
-            neighbor[i] = 1 - neighbor[i]
+        neighbour = self.current.copy()
+        i = self.rng.integers(0, self.problem.n)
+        neighbour[i] = 1 - neighbour[i]
 
-        neighbor_value = self.problem.evaluate(neighbor)
+        neighbour_value = self.problem.evaluate(neighbour)
         self.evaluations += 1
 
-        if neighbor_value >= self.current_value:
-            self.current = neighbor
-            self.current_value = neighbor_value
-
+        if self.rng.random() < epsilon:
+            # Uninformed Random Walk step: move to a random neighbour unconditionally
+            # Accept without fitness gate
+            self.current = neighbour
+            self.current_value = neighbour_value
+        else:
+            if neighbour_value >= self.current_value:
+                self.current = neighbour
+                self.current_value = neighbour_value
+        
         if self.current_value > self.best_value:
             self.best_value = self.current_value
             self.best_solution = self.current.copy()
