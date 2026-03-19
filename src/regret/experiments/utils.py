@@ -205,6 +205,7 @@ def generate_plots(
     f_star: float | None,
     results: dict[tuple[str, int], list[dict[str, Any]]],
     max_budget: int,
+    budget_for_plots: int | None = None,
     output_dir: Path | str = "results/figures",
     plotting_config: dict[str, Any] | None = None,
 ) -> None:
@@ -217,10 +218,21 @@ def generate_plots(
         f_star: Known optimum value, or None if unknown.
         results: Mapping of (algorithm, budget) -> list of run result dicts.
         max_budget: Maximum budget to use for budget-specific plots.
+        budget_for_plots: Optional budget for budget-specific plots. If None,
+            uses max_budget.
         output_dir: Base directory for saving figures.
         plotting_config: Optional plotting configuration dict from YAML.
             If None, generates all plots with default settings.
     """
+    selected_budget = int(max_budget if budget_for_plots is None else budget_for_plots)
+
+    available_budgets = {int(b) for _, b in results.keys()}
+    if selected_budget not in available_budgets:
+        raise ValueError(
+            "Selected plotting budget is not available in results: "
+            f"budget={selected_budget}, available={sorted(available_budgets)}"
+        )
+
     base_dir = (
         Path(output_dir) / safe_slug(suite_name) / safe_slug(problem_name) / f"n{n}"
     )
@@ -234,14 +246,16 @@ def generate_plots(
     dirs = {
         "aggregate": base_dir / structure.get("aggregate", "aggregate"),
         "history": base_dir / structure.get("history", "history"),
-        "budget": base_dir / f"budget_{max_budget}",
+        "budget": base_dir / f"budget_{selected_budget}",
     }
     for d in dirs.values():
         d.mkdir(parents=True, exist_ok=True)
 
-    def _is_enabled(plot_key: str) -> bool:
-        """Check if a plot is enabled in config (default: True)."""
-        return plots_cfg.get(plot_key, {}).get("enabled", True)
+    def _is_enabled(plot_key: str, default: bool = True) -> bool:
+        """Check if a plot is enabled in config with configurable default."""
+        if plot_key not in plots_cfg:
+            return default
+        return plots_cfg.get(plot_key, {}).get("enabled", default)
 
     def _get_filename(plot_key: str, default: str) -> str:
         """Get filename from config or use default."""
@@ -293,31 +307,31 @@ def generate_plots(
     if _is_enabled("regret_boxplots"):
         cfg = plots_cfg.get("regret_boxplots", {})
         filename = cfg.get("filename", "regret_boxplot_b{budget}.pdf").format(
-            budget=max_budget
+            budget=selected_budget
         )
         plot_simple_regret_boxplots(
             results,
-            budget=max_budget,
+            budget=selected_budget,
             save_path=str(dirs["budget"] / filename),
-            title=f"{problem_name}: Regret Distribution at Budget={max_budget}",
+            title=f"{problem_name}: Regret Distribution at Budget={selected_budget}",
             show=False,
         )
 
     if _is_enabled("performance_profile"):
         cfg = plots_cfg.get("performance_profile", {})
         filename = cfg.get("filename", "performance_profile_b{budget}.pdf").format(
-            budget=max_budget
+            budget=selected_budget
         )
         plot_performance_profile(
             results,
-            budget=max_budget,
+            budget=selected_budget,
             save_path=str(dirs["budget"] / filename),
-            title=f"{problem_name}: Performance Profile at Budget={max_budget}",
+            title=f"{problem_name}: Performance Profile at Budget={selected_budget}",
             show=False,
         )
 
     # History plots (require trajectory data)
-    history_results = history_view_at_budget(results, max_budget)
+    history_results = history_view_at_budget(results, selected_budget)
     if not history_results:
         return
 
@@ -335,7 +349,7 @@ def generate_plots(
                 save_path=str(
                     dirs["history"] / _get_filename(plot_key, default_filename)
                 ),
-                title=f"{problem_name}: {series.title()} Value Trajectory at Budget={max_budget}",
+                title=f"{problem_name}: {series.title()} Value Trajectory at Budget={selected_budget}",
                 series=series,
                 log_x=cfg.get("log_x", False),
                 log_y=cfg.get("log_y", False),
@@ -373,7 +387,7 @@ def generate_plots(
                 save_path=str(
                     dirs["history"] / _get_filename(plot_key, default_filename)
                 ),
-                title=f"{problem_name}: {title_suffix} Trajectory at Budget={max_budget}",
+                title=f"{problem_name}: {title_suffix} Trajectory at Budget={selected_budget}",
                 series=series,
                 use_best=use_best,
                 log_x=cfg.get("log_x", False),
@@ -392,6 +406,6 @@ def generate_plots(
                 dirs["history"]
                 / _get_filename("ttfo_distribution", "history_ttfo_markers.pdf")
             ),
-            title=f"{problem_name}: TTFO Samples at Budget={max_budget}",
+            title=f"{problem_name}: TTFO Samples at Budget={selected_budget}",
             show=False,
         )
