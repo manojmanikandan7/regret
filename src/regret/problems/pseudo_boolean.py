@@ -4,7 +4,12 @@ from regret.core.base import Problem
 
 
 class OneMax(Problem):
-    """Count number of ones in binary string."""
+    """
+    Count number of ones in binary string.
+
+    Droste, S., Jansen, T., & Wegener, I. (2002). On the analysis of the (1+1) evolutionary algorithm.
+    """
+
 
     def evaluate(self, x: np.ndarray) -> float:
         """Compute fitness as the count of ones.
@@ -47,7 +52,9 @@ class LeadingOnes(Problem):
 class Jump(Problem):
     """
     Jump function with gap of size k.
-    [n - k + 1, n] represents the "valley" to climb to reach maxima (local: n - k + 1, global: n)
+
+    [n - k + 1, n] represents the "valley" to climb to reach maxima (local: n - k + 1, global: n + k)
+    Droste, S., Jansen, T., & Wegener, I. (2002). On the analysis of the (1+1) evolutionary algorithm.
     """
 
     def __init__(self, n: int, k: int = 3):
@@ -126,11 +133,12 @@ class BinVal(Problem):
 
 class Trap(Problem):
     """
-    Trap function (Deb & Goldberg, FOGA 1992).
+    Trap function with parameter k.
 
     Deceptive attractor at all zeros (value = n - k), global optimum at all
     ones (value = n), trough at u (i.e., number of ones) = n - k (value = 0). k = 1 is the classical
     fully deceptive trap: f(u) = n-1-u for u < n, f(n) = n.
+    Deb & Goldberg, FOGA 1992
     """
 
     def __init__(self, n: int, k: int = 1):

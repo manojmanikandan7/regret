@@ -1,7 +1,7 @@
 [project]
 name = "regret"
 version = "0.1.0"
-description = "Add your description here"
+description = "A Benchmarking Framework for Black-Box Combinatorial Optimisation"
 readme = "README.md"
 authors = [
     { name = "Manoj Manikandan", email = "manoj.manikandan@student.manchester.ac.uk" }
@@ -25,6 +25,10 @@ requires = ["uv_build>=0.9.7,<0.10.0"]
 build-backend = "uv_build"
 
 [dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "pytest-cov>=7.0.0",
+]
 lint = [
     "ruff>=0.14.10",
 ]
