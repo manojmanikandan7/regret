@@ -69,7 +69,7 @@ def execute_experiments(config: dict[str, Any], plot: bool = True) -> None:
     suite_name = suite_cfg["name"]
     runs = int(suite_cfg["runs"])
     mode = suite_cfg["mode"]
-    parallel = suite_cfg.get("parallel", True)
+    parallel = suite_cfg["parallel"]
     budgets = [int(b) for b in suite_cfg["budgets"]]
 
     problem_specs = parse_problems(config)
@@ -112,24 +112,22 @@ def execute_experiments(config: dict[str, Any], plot: bool = True) -> None:
                 all_results[(alg_spec.name, budget)] = results
 
         # Generate plots if requested
-        if plot and config.get("plotting", {}).get("enabled", True):
-            figures_root = suite_cfg.get("output", {}).get(
-                "figures_root", "results/figures"
-            )
+        if plot and config["plotting"]["enabled"]:
+            selected_plot_budget = problem_spec.budget_for_plots
+            figures_root = suite_cfg["output"]["figures_root"]
             generate_plots(
                 suite_name=suite_name,
                 problem_name=problem_spec.name,
                 n=problem.n,
                 f_star=getattr(problem, "f_star", None),
                 results=all_results,
-                max_budget=max(budgets),
-                budget_for_plots=config.get("plotting", {}).get("budget_for_plots"),
+                budget_for_plots=selected_plot_budget,
+                plotting_config=config["plotting"],
                 output_dir=figures_root,
-                plotting_config=config.get("plotting"),
             )
 
 
-def analyze_results(config: dict[str, Any]) -> None:
+def analyze_results(config: dict[str, Any]):
     """Regenerate plots from existing experiment results.
 
     Args:
@@ -142,10 +140,15 @@ def analyze_results(config: dict[str, Any]) -> None:
     from collections import defaultdict
 
     # Determine results directory
-    results_dir = Path(config["suite"].get("output", {}).get("raw_root", "results/raw"))
+    results_dir = Path(config["suite"]["output"]["raw_root"])
 
     if not results_dir.exists():
         raise FileNotFoundError(f"Results directory not found: {results_dir}")
+
+    plotting_enabled = config["plotting"]["enabled"]
+    if not plotting_enabled:
+        print("STOPPING: plotting not enabled")
+        return
 
     suite_name = config["suite"]["name"]
     problem_specs = parse_problems(config)
@@ -153,6 +156,9 @@ def analyze_results(config: dict[str, Any]) -> None:
 
     # Map slugs back to configured display names to preserve plot legends/labels.
     problem_slug_to_name = {safe_slug(p.name): p.name for p in problem_specs}
+    problem_plot_budget = {
+        p.name: p.budget_for_plots for p in problem_specs
+    }
     algorithm_slug_to_name = {safe_slug(a.name): a.name for a in algorithm_specs}
 
     # Scan for JSON files and group by (problem_name, problem_size)
@@ -167,8 +173,6 @@ def analyze_results(config: dict[str, Any]) -> None:
 
     # Load and parse all results
     for json_file in json_files:
-        # Get path components for determining algorithm names
-        rel_parts = json_file.relative_to(results_dir).parts
 
         with open(json_file, "r") as f:
             data = json.load(f)
@@ -179,29 +183,26 @@ def analyze_results(config: dict[str, Any]) -> None:
 
         # Path shape:
         #   <suite>/<problem>/<algorithm>/nX/bY.json
+        # Get path components for determining algorithm names
+        rel_parts = metadata["name"].split("/")
         problem_slug = rel_parts[1]
         algorithm_slug = rel_parts[2]
 
-        problem_name = problem_slug_to_name.get(problem_slug, metadata["problem"])
-        algorithm_name = algorithm_slug_to_name.get(
-            algorithm_slug, metadata["algorithm"]
-        )
+        problem_name = problem_slug_to_name[problem_slug]
+        algorithm_name = algorithm_slug_to_name[algorithm_slug]
         n = int(metadata["problem_size"])
         budget = int(metadata["budget"])
 
         problem_key = (problem_name, n)
         results_by_problem[problem_key][(algorithm_name, budget)] = results
-        f_star_by_problem[problem_key] = statistics.get("global_optimum")
+        f_star_by_problem[problem_key] = statistics["global_optimum"]
 
     # For each problem group, regenerate plots
     for (problem_name, n), alg_budget_results in sorted(results_by_problem.items()):
         print(f"\n[analyze] Generating plots for {problem_name} (n={n})")
 
         # Use saved optimum from raw results when available.
-        f_star = f_star_by_problem.get((problem_name, n))
-
-        # Find max budget for this problem
-        max_budget = max(budget for _, budget in alg_budget_results.keys())
+        f_star = f_star_by_problem[(problem_name, n)]
 
         # Prepare results in the format expected by generate_plots
         # Format: {(algorithm, budget): [list of run dicts]}
@@ -211,12 +212,9 @@ def analyze_results(config: dict[str, Any]) -> None:
             n=n,
             f_star=f_star,
             results=alg_budget_results,
-            max_budget=max_budget,
-            budget_for_plots=config.get("plotting", {}).get("budget_for_plots"),
-            output_dir=config["suite"]
-            .get("output", {})
-            .get("figures_root", "results/figures"),
-            plotting_config=config.get("plotting"),
+            budget_for_plots= problem_plot_budget[problem_name],
+            plotting_config=config["plotting"],
+            output_dir=config["suite"] ["output"]["figures_root"],
         )
 
     print("\n[analyze] Analysis completed")

@@ -67,6 +67,11 @@ CONFIG_SCHEMA = {
                         "type": "string",
                         "description": "Display name (defaults to class name)",
                     },
+                    "budget_for_plots": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "description": "Optional per-problem override for budget-specific figures",
+                    },
                     "class": {
                         "type": "string",
                         "minLength": 1,
@@ -126,7 +131,6 @@ CONFIG_SCHEMA = {
                     "minimum": 1,
                     "description": "Budget used for budget-specific figures (defaults to max suite budget)",
                 },
-                "save": {"type": "boolean"},
                 "layout": {"type": "object"},
                 "titles": {"type": "object"},
                 "plots": {"type": "object"},

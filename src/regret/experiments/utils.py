@@ -28,6 +28,7 @@ class ProblemSpec:
     name: str
     class_name: str
     params: dict[str, Any]
+    budget_for_plots: int
 
 
 @dataclass(frozen=True)
@@ -124,17 +125,25 @@ def parse_problems(config: dict[str, Any]) -> list[ProblemSpec]:
         List of ProblemSpec objects.
     """
     problems_cfg = config.get("problems", [])
+    global_plot_budget = config["plotting"].get("budget_for_plots")
+    max_budget = max(config["suite"]["budgets"])
+
     if not problems_cfg:
         raise ValueError("No problems configured in config")
 
-    return [
-        ProblemSpec(
-            name=p.get("name", p["class"]),
-            class_name=p["class"],
-            params=p.get("params", {}),
+    prob_specs = []
+    for p in problems_cfg:
+        budget_for_plots = int(p.get("budget_for_plots") or global_plot_budget or max_budget)
+        prob_specs.append(
+            ProblemSpec(
+                name=p["name"],
+                class_name=p["class"],
+                params=p.get("params", {}),
+                budget_for_plots=budget_for_plots
+            )
         )
-        for p in problems_cfg
-    ]
+
+    return prob_specs
 
 
 def parse_algorithms(config: dict[str, Any]) -> list[AlgorithmSpec]:
@@ -204,10 +213,9 @@ def generate_plots(
     n: int,
     f_star: float | None,
     results: dict[tuple[str, int], list[dict[str, Any]]],
-    max_budget: int,
-    budget_for_plots: int | None = None,
+    budget_for_plots: int,
+    plotting_config: dict[str, Any], 
     output_dir: Path | str = "results/figures",
-    plotting_config: dict[str, Any] | None = None,
 ) -> None:
     """Generate plots for a problem's results based on config.
 
@@ -224,13 +232,12 @@ def generate_plots(
         plotting_config: Optional plotting configuration dict from YAML.
             If None, generates all plots with default settings.
     """
-    selected_budget = int(max_budget if budget_for_plots is None else budget_for_plots)
 
     available_budgets = {int(b) for _, b in results.keys()}
-    if selected_budget not in available_budgets:
+    if budget_for_plots not in available_budgets:
         raise ValueError(
             "Selected plotting budget is not available in results: "
-            f"budget={selected_budget}, available={sorted(available_budgets)}"
+            f"budget={budget_for_plots}, available={sorted(available_budgets)}"
         )
 
     base_dir = (
@@ -238,15 +245,15 @@ def generate_plots(
     )
 
     # Extract plot configs, defaulting to enabled if not specified
-    plots_cfg = (plotting_config or {}).get("plots", {})
-    layout_cfg = (plotting_config or {}).get("layout", {})
+    plots_cfg = plotting_config["plots"]
+    layout_cfg = plotting_config["layout"]
 
     # Define output directories from config or defaults
-    structure = layout_cfg.get("structure", {})
+    structure = layout_cfg["structure"]
     dirs = {
         "aggregate": base_dir / structure.get("aggregate", "aggregate"),
         "history": base_dir / structure.get("history", "history"),
-        "budget": base_dir / f"budget_{selected_budget}",
+        "distribution": base_dir / structure.get("distribution", f"budget_{budget_for_plots}")
     }
     for d in dirs.values():
         d.mkdir(parents=True, exist_ok=True)
@@ -255,17 +262,13 @@ def generate_plots(
         """Check if a plot is enabled in config with configurable default."""
         if plot_key not in plots_cfg:
             return default
-        return plots_cfg.get(plot_key, {}).get("enabled", default)
+        return plots_cfg[plot_key].get("enabled", default)
 
     def _get_filename(plot_key: str, default: str) -> str:
         """Get filename from config or use default."""
-        return plots_cfg.get(plot_key, {}).get("filename", default)
-
-    def _format_title(problem: str, budget: int, template: str | None = None) -> str:
-        """Format title with problem name and budget."""
-        if template:
-            return template.format(problem=problem, budget=budget)
-        return f"{problem} at Budget={budget}"
+        if plot_key not in plots_cfg:
+            return default
+        return plots_cfg[plot_key].get("filename", default)
 
     # Aggregate plots (across budgets)
     if _is_enabled("regret_curves"):
@@ -305,33 +308,33 @@ def generate_plots(
 
     # Budget-specific plots
     if _is_enabled("regret_boxplots"):
-        cfg = plots_cfg.get("regret_boxplots", {})
+        cfg = plots_cfg["regret_boxplots"]
         filename = cfg.get("filename", "regret_boxplot_b{budget}.pdf").format(
-            budget=selected_budget
+            budget=budget_for_plots
         )
         plot_simple_regret_boxplots(
             results,
-            budget=selected_budget,
-            save_path=str(dirs["budget"] / filename),
-            title=f"{problem_name}: Regret Distribution at Budget={selected_budget}",
+            budget=budget_for_plots,
+            save_path=str(dirs["distribution"] / filename),
+            title=f"{problem_name}: Regret Distribution at Budget={budget_for_plots}",
             show=False,
         )
 
     if _is_enabled("performance_profile"):
-        cfg = plots_cfg.get("performance_profile", {})
+        cfg = plots_cfg["performance_profile"]
         filename = cfg.get("filename", "performance_profile_b{budget}.pdf").format(
-            budget=selected_budget
+            budget=budget_for_plots
         )
         plot_performance_profile(
             results,
-            budget=selected_budget,
-            save_path=str(dirs["budget"] / filename),
-            title=f"{problem_name}: Performance Profile at Budget={selected_budget}",
+            budget=budget_for_plots,
+            save_path=str(dirs["distribution"] / filename),
+            title=f"{problem_name}: Performance Profile at Budget={budget_for_plots}",
             show=False,
         )
 
     # History plots (require trajectory data)
-    history_results = history_view_at_budget(results, selected_budget)
+    history_results = history_view_at_budget(results, budget_for_plots)
     if not history_results:
         return
 
@@ -340,7 +343,7 @@ def generate_plots(
     history_plot_keys = ["history_current", "history_best"]
     for plot_key in history_plot_keys:
         if _is_enabled(plot_key) and f_star is not None:
-            cfg = plots_cfg.get(plot_key, {})
+            cfg = plots_cfg[plot_key]
             series = cfg.get("series", "current" if "current" in plot_key else "best")
             default_filename = f"{plot_key}.pdf"
             plot_history(
@@ -349,7 +352,7 @@ def generate_plots(
                 save_path=str(
                     dirs["history"] / _get_filename(plot_key, default_filename)
                 ),
-                title=f"{problem_name}: {series.title()} Value Trajectory at Budget={selected_budget}",
+                title=f"{problem_name}: {series.title()} Value Trajectory at Budget={budget_for_plots}",
                 series=series,
                 log_x=cfg.get("log_x", False),
                 log_y=cfg.get("log_y", False),
@@ -367,7 +370,7 @@ def generate_plots(
     ]
     for plot_key in regret_plot_keys:
         if _is_enabled(plot_key) and f_star is not None:
-            cfg = plots_cfg.get(plot_key, {})
+            cfg = plots_cfg[plot_key]
             # Infer series from key name
             if "instantaneous" in plot_key:
                 default_series = "instantaneous"
@@ -387,7 +390,7 @@ def generate_plots(
                 save_path=str(
                     dirs["history"] / _get_filename(plot_key, default_filename)
                 ),
-                title=f"{problem_name}: {title_suffix} Trajectory at Budget={selected_budget}",
+                title=f"{problem_name}: {title_suffix} Trajectory at Budget={budget_for_plots}",
                 series=series,
                 use_best=use_best,
                 log_x=cfg.get("log_x", False),
@@ -398,7 +401,7 @@ def generate_plots(
 
     # TTFO distribution plot
     if _is_enabled("ttfo_distribution"):
-        cfg = plots_cfg.get("ttfo_distribution", {})
+        cfg = plots_cfg["ttfo_distribution"]
         plot_ttfo_distribution(
             results=history_results,
             f_star=f_star,
@@ -406,6 +409,6 @@ def generate_plots(
                 dirs["history"]
                 / _get_filename("ttfo_distribution", "history_ttfo_markers.pdf")
             ),
-            title=f"{problem_name}: TTFO Samples at Budget={selected_budget}",
+            title=f"{problem_name}: TTFO Samples at Budget={budget_for_plots}",
             show=False,
         )

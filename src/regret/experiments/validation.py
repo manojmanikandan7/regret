@@ -80,18 +80,28 @@ def validate_semantic(config: dict[str, Any]) -> None:
     Raises:
         ValidationError: If semantic validation fails.
     """
+    suite_budgets = {int(b) for b in config["suite"]["budgets"]}
+
     # Validate problem classes
     for idx, problem in enumerate(config.get("problems", [])):
-        class_name = problem.get("class")
+        class_name = problem["class"]
         if class_name not in PROBLEM_REGISTRY:
             raise ValidationError(
                 f"problems[{idx}].class: Unknown problem class '{class_name}'. "
                 f"Available: {sorted(PROBLEM_REGISTRY.keys())}"
             )
 
+        # Validate optional per-problem plotting budget selector
+        selected_budget = problem.get("budget_for_plots")
+        if selected_budget is not None and int(selected_budget) not in suite_budgets:
+            raise ValidationError(
+                f"problems[{idx}].budget_for_plots: must be one of suite.budgets "
+                f"{sorted(suite_budgets)}"
+            )
+
     # Validate algorithm classes and args structure
     for idx, algorithm in enumerate(config.get("algorithms", [])):
-        class_name = algorithm.get("class")
+        class_name = algorithm["class"]
         if class_name not in ALGORITHM_REGISTRY:
             raise ValidationError(
                 f"algorithms[{idx}].class: Unknown algorithm class '{class_name}'. "
@@ -113,15 +123,13 @@ def validate_semantic(config: dict[str, Any]) -> None:
             )
 
     # Validate optional plotting budget selector
-    plotting_cfg = config.get("plotting", {})
+    plotting_cfg = config["plotting"]
     selected_budget = plotting_cfg.get("budget_for_plots")
-    if selected_budget is not None:
-        suite_budgets = {int(b) for b in config.get("suite", {}).get("budgets", [])}
-        if int(selected_budget) not in suite_budgets:
-            raise ValidationError(
-                "plotting.budget_for_plots: must be one of suite.budgets "
-                f"{sorted(suite_budgets)}"
-            )
+    if selected_budget is not None and int(selected_budget) not in suite_budgets:
+        raise ValidationError(
+            "plotting.budget_for_plots: must be one of suite.budgets "
+            f"{sorted(suite_budgets)}"
+        )
 
 
 def _validate_cooling_schedule(args_dict: dict[str, Any], path: str) -> None:
