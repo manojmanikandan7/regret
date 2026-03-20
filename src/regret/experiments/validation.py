@@ -122,8 +122,14 @@ def validate_semantic(config: dict[str, Any]) -> None:
                 overrides, f"algorithms[{idx}].args.by_problem[{prob_name}]"
             )
 
+    # Plotting config is required semantically, even when plotting is disabled.
+    plotting_cfg = config.get("plotting")
+    if not isinstance(plotting_cfg, dict):
+        raise ValidationError(
+            "plotting: missing required plotting configuration; set plotting.enabled: false to disable plots"
+        )
+
     # Validate optional plotting budget selector
-    plotting_cfg = config["plotting"]
     selected_budget = plotting_cfg.get("budget_for_plots")
     if selected_budget is not None and int(selected_budget) not in suite_budgets:
         raise ValidationError(
