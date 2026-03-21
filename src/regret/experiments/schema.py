@@ -48,7 +48,7 @@ CONFIG_SCHEMA = {
                 },
                 "output": {
                     "type": "object",
-                    "required": ["raw_root", "figures_root"],
+                    "required": ["raw_root"],
                     "properties": {
                         "raw_root": {"type": "string"},
                         "figures_root": {"type": "string"},
@@ -438,5 +438,33 @@ CONFIG_SCHEMA = {
             "description": "Plotting configuration",
         },
     },
+    "allOf": [
+        {
+            "if": {
+                "properties": {
+                    "plotting": {
+                        "type": "object",
+                        "properties": {
+                            "enabled": {"const": True},
+                        },
+                        "required": ["enabled"],
+                    }
+                }
+            },
+            "then": {
+                "properties": {
+                    "suite": {
+                        "type": "object",
+                        "properties": {
+                            "output": {
+                                "type": "object",
+                                "required": ["figures_root"],
+                            }
+                        },
+                    }
+                }
+            },
+        }
+    ],
     "additionalProperties": False,
 }

@@ -75,6 +75,25 @@ def test_validate_schema_accepts_valid_config() -> None:
     validate_schema(_valid_config())
 
 
+def test_validate_schema_allows_missing_figures_root_when_plotting_disabled() -> None:
+    """figures_root is optional when plotting is disabled."""
+    config = _valid_config()
+    del config["suite"]["output"]["figures_root"]
+    config["plotting"]["enabled"] = False
+
+    validate_schema(config)
+
+
+def test_validate_schema_requires_figures_root_when_plotting_enabled() -> None:
+    """figures_root is required when plotting is enabled."""
+    config = _valid_config()
+    del config["suite"]["output"]["figures_root"]
+    config["plotting"]["enabled"] = True
+
+    with pytest.raises(ValidationError, match="Schema validation failed"):
+        validate_schema(config)
+
+
 def test_validate_schema_rejects_missing_required_key() -> None:
     """Missing required top-level keys should fail schema validation."""
     config = _valid_config()
@@ -152,7 +171,9 @@ def test_validate_semantic_rejects_unknown_cooling_type_in_mapping() -> None:
 def test_validate_semantic_rejects_unknown_cooling_in_by_problem() -> None:
     """Problem-specific cooling overrides are semantically validated too."""
     config = _valid_config()
-    config["algorithms"][0]["args"]["by_problem"] = {"OneMax": {"cooling": "nope"}}
+    config["algorithms"][0]["args"]["by_problem"] = {
+        "OneMax": {"cooling": "not-valid"}
+    }
 
     with pytest.raises(ValidationError, match="Unknown cooling schedule"):
         validate_semantic(config)
@@ -312,7 +333,7 @@ def test_validate_config_end_to_end_semantic_failure(tmp_path: Path) -> None:
                 "    class: RLS",
                 "    args:",
                 "      defaults:",
-                "        cooling: definitely-not-valid",
+                "        cooling: not-valid",
                 "      by_problem: {}",
                 "plotting:",
                 "  enabled: false",
