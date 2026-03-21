@@ -82,8 +82,22 @@ def validate_semantic(config: dict[str, Any]) -> None:
     """
     suite_budgets = {int(b) for b in config["suite"]["budgets"]}
 
+    problem_names: set[str] = set()
+
     # Validate problem classes
     for idx, problem in enumerate(config.get("problems", [])):
+        problem_name_raw = problem.get("name")
+        if not isinstance(problem_name_raw, str) or not problem_name_raw.strip():
+            raise ValidationError(
+                f"problems[{idx}].name: missing required non-empty problem name"
+            )
+        problem_name = problem_name_raw.strip()
+        if problem_name in problem_names:
+            raise ValidationError(
+                f"problems[{idx}].name: Duplicate problem name '{problem_name}'"
+            )
+        problem_names.add(problem_name)
+
         class_name = problem["class"]
         if class_name not in PROBLEM_REGISTRY:
             raise ValidationError(
@@ -99,8 +113,22 @@ def validate_semantic(config: dict[str, Any]) -> None:
                 f"{sorted(suite_budgets)}"
             )
 
+    algorithm_names: set[str] = set()
+
     # Validate algorithm classes and args structure
     for idx, algorithm in enumerate(config.get("algorithms", [])):
+        algorithm_name_raw = algorithm.get("name")
+        if not isinstance(algorithm_name_raw, str) or not algorithm_name_raw.strip():
+            raise ValidationError(
+                f"algorithms[{idx}].name: missing required non-empty algorithm name"
+            )
+        algorithm_name = algorithm_name_raw.strip()
+        if algorithm_name in algorithm_names:
+            raise ValidationError(
+                f"algorithms[{idx}].name: Duplicate algorithm name '{algorithm_name}'"
+            )
+        algorithm_names.add(algorithm_name)
+
         class_name = algorithm["class"]
         if class_name not in ALGORITHM_REGISTRY:
             raise ValidationError(
@@ -115,10 +143,19 @@ def validate_semantic(config: dict[str, Any]) -> None:
 
         # Check defaults
         _validate_cooling_schedule(defaults, f"algorithms[{idx}].args.defaults")
+        _validate_cooling_keys_exclusive(defaults, f"algorithms[{idx}].args.defaults")
 
         # Check by_problem overrides
         for prob_name, overrides in by_problem.items():
+            if prob_name not in problem_names:
+                raise ValidationError(
+                    f"algorithms[{idx}].args.by_problem[{prob_name}]: unknown problem name; "
+                    f"must match one of {sorted(problem_names)}"
+                )
             _validate_cooling_schedule(
+                overrides, f"algorithms[{idx}].args.by_problem[{prob_name}]"
+            )
+            _validate_cooling_keys_exclusive(
                 overrides, f"algorithms[{idx}].args.by_problem[{prob_name}]"
             )
 
@@ -167,6 +204,14 @@ def _validate_cooling_schedule(args_dict: dict[str, Any], path: str) -> None:
                     f"{path}.{key}: Unknown cooling schedule '{spec}'. "
                     f"Available: {sorted(COOLING_REGISTRY.keys())}"
                 )
+
+
+def _validate_cooling_keys_exclusive(args_dict: dict[str, Any], path: str) -> None:
+    """Reject redundant simultaneous cooling keys."""
+    if "cooling" in args_dict and "T_func" in args_dict:
+        raise ValidationError(
+            f"{path}: use only one of 'cooling' or 'T_func', not both"
+        )
 
 
 def validate_config(config_path: Path) -> dict[str, Any]:

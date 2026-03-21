@@ -249,7 +249,7 @@ class ExperimentRunner:
         filepath = self.output_dir / f"{name}.json"
         filepath.parent.mkdir(parents=True, exist_ok=True)
         with open(filepath, "w", encoding="utf-8") as f:
-            json.dump(output, f, separators=(',', ':'))
+            json.dump(output, f, separators=(",", ":"))
 
     def load_results(self, name: str) -> dict[str, Any]:
         """Load a previously saved experiment JSON result file.

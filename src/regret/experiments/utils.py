@@ -164,11 +164,11 @@ def parse_algorithms(config: dict[str, Any]) -> list[AlgorithmSpec]:
         args_cfg = a.get("args", {})
         if not isinstance(args_cfg, dict):
             raise ValueError(
-                f"Algorithm '{a.get('name', a.get('class', '<unknown>'))}' args must be a mapping"
+                f"Algorithm '{a.get('name', '<unknown>')}' args must be a mapping"
             )
         specs.append(
             AlgorithmSpec(
-                name=a.get("name", a["class"]),
+                name=a["name"],
                 class_name=a["class"],
                 args={
                     "defaults": args_cfg.get("defaults", {}),
@@ -240,16 +240,24 @@ def generate_plots(
             f"budget={budget_for_plots}, available={sorted(available_budgets)}"
         )
 
-    base_dir = (
-        Path(output_dir) / safe_slug(suite_name) / safe_slug(problem_name) / f"n{n}"
-    )
+    # Extract plot/layout/title configs with safe defaults.
+    plots_cfg = plotting_config.get("plots", {})
+    layout_cfg = plotting_config.get("layout", {})
+    titles_cfg = plotting_config.get("titles", {})
 
-    # Extract plot configs, defaulting to enabled if not specified
-    plots_cfg = plotting_config["plots"]
-    layout_cfg = plotting_config["layout"]
+    per_problem_dir = bool(layout_cfg.get("per_problem_dir", True))
+    include_n_subdir = bool(layout_cfg.get("include_n_subdir", True))
+    include_problem_name = bool(titles_cfg.get("include_problem_name", True))
+    include_problem_size = bool(titles_cfg.get("include_problem_size", True))
+
+    base_dir = Path(output_dir) / safe_slug(suite_name)
+    if per_problem_dir:
+        base_dir = base_dir / safe_slug(problem_name)
+    if include_n_subdir:
+        base_dir = base_dir / f"n{n}"
 
     # Define output directories from config or defaults
-    structure = layout_cfg["structure"]
+    structure = layout_cfg.get("structure")
     dirs = {
         "aggregate": base_dir / structure.get("aggregate", "aggregate"),
         "history": base_dir / structure.get("history", "history"),
@@ -270,20 +278,48 @@ def generate_plots(
             return default
         return plots_cfg[plot_key].get("filename", default)
 
+    def _optional_kwargs(cfg: dict[str, Any], keys: list[str]) -> dict[str, Any]:
+        """Forward only explicitly configured plotting kwargs."""
+        return {k: cfg[k] for k in keys if k in cfg}
+
+    def _format_title(subject: str) -> str:
+        """Compose plot title using config flags."""
+        context: list[str] = []
+        if include_problem_name:
+            context.append(problem_name)
+        if include_problem_size:
+            context.append(f"n={n}")
+        prefix = " - ".join(context)
+        if prefix and subject:
+            return f"{prefix}: {subject}"
+        return prefix or subject
+
     # Aggregate plots (across budgets)
     if _is_enabled("regret_curves"):
-        cfg = plots_cfg.get("regret_curves", {})
+        cfg = plots_cfg["regret_curves"]
         plot_simple_regret_curves(
             results,
             save_path=str(
                 dirs["aggregate"] / _get_filename("regret_curves", "regret_curves.pdf")
             ),
-            title=f"{problem_name}: Mean Simple Regret vs Budget",
+            title=_format_title("Mean Simple Regret vs Budget"),
             log_scale=cfg.get("log_scale", True),
+            **_optional_kwargs(
+                cfg,
+                [
+                    "spread",
+                    "confidence",
+                    "n_bootstrap",
+                    "annotate_pairwise",
+                    "comparison_budget",
+                    "paired_runs",
+                ],
+            ),
             show=False,
         )
 
     if _is_enabled("convergence_probability"):
+        cfg = plots_cfg["convergence_probability"]
         plot_convergence_probability(
             results,
             save_path=str(
@@ -292,7 +328,8 @@ def generate_plots(
                     "convergence_probability", "convergence_probability.pdf"
                 )
             ),
-            title=f"{problem_name}: Probability of Optimum vs Budget",
+            title=_format_title("Probability of Optimum vs Budget"),
+            **_optional_kwargs(cfg, ["show_confidence_band", "confidence"]),
             show=False,
         )
 
@@ -316,7 +353,16 @@ def generate_plots(
             results,
             budget=budget_for_plots,
             save_path=str(dirs["distribution"] / filename),
-            title=f"{problem_name}: Regret Distribution at Budget={budget_for_plots}",
+            title=_format_title(f"Regret Distribution at Budget={budget_for_plots}"),
+            **_optional_kwargs(
+                cfg,
+                [
+                    "show_points",
+                    "annotate_pairwise",
+                    "reference_algorithm",
+                    "paired_runs",
+                ],
+            ),
             show=False,
         )
 
@@ -329,7 +375,11 @@ def generate_plots(
             results,
             budget=budget_for_plots,
             save_path=str(dirs["distribution"] / filename),
-            title=f"{problem_name}: Performance Profile at Budget={budget_for_plots}",
+            title=_format_title(f"Performance Profile at Budget={budget_for_plots}"),
+            **_optional_kwargs(
+                cfg,
+                ["annotate_pairwise", "reference_algorithm", "paired_runs"],
+            ),
             show=False,
         )
 
@@ -352,11 +402,14 @@ def generate_plots(
                 save_path=str(
                     dirs["history"] / _get_filename(plot_key, default_filename)
                 ),
-                title=f"{problem_name}: {series.title()} Value Trajectory at Budget={budget_for_plots}",
+                title=_format_title(
+                    f"{series.title()} Value Trajectory at Budget={budget_for_plots}"
+                ),
                 series=series,
                 log_x=cfg.get("log_x", False),
                 log_y=cfg.get("log_y", False),
                 show_ttfo_markers=cfg.get("show_ttfo_markers", True),
+                **_optional_kwargs(cfg, ["spread", "confidence", "n_bootstrap"]),
                 show=False,
             )
 
@@ -390,12 +443,13 @@ def generate_plots(
                 save_path=str(
                     dirs["history"] / _get_filename(plot_key, default_filename)
                 ),
-                title=f"{problem_name}: {title_suffix} Trajectory at Budget={budget_for_plots}",
+                title=_format_title(f"{title_suffix} Trajectory at Budget={budget_for_plots}"),
                 series=series,
                 use_best=use_best,
                 log_x=cfg.get("log_x", False),
                 log_y=cfg.get("log_y", True),
                 show_ttfo_markers=cfg.get("show_ttfo_markers", True),
+                **_optional_kwargs(cfg, ["spread", "confidence", "n_bootstrap"]),
                 show=False,
             )
 
@@ -409,6 +463,16 @@ def generate_plots(
                 dirs["history"]
                 / _get_filename("ttfo_distribution", "history_ttfo_markers.pdf")
             ),
-            title=f"{problem_name}: TTFO Samples at Budget={budget_for_plots}",
+            title=_format_title(f"TTFO Samples at Budget={budget_for_plots}"),
+            **_optional_kwargs(
+                cfg,
+                [
+                    "tolerance",
+                    "show_median",
+                    "annotate_pairwise",
+                    "reference_algorithm",
+                    "paired_runs",
+                ],
+            ),
             show=False,
         )
