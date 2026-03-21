@@ -122,7 +122,6 @@ class TestJump:
         x = np.array([1, 1, 1, 1, 1, 1, 1, 1, 0, 1])
         assert problem.evaluate(x) == 10.0 - 9.0
 
-
     def test_jump_optimum(self):
         """Test Jump optimum value."""
         problem = Jump(n=10, k=3)

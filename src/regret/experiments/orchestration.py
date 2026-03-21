@@ -156,9 +156,7 @@ def analyze_results(config: dict[str, Any]):
 
     # Map slugs back to configured display names to preserve plot legends/labels.
     problem_slug_to_name = {safe_slug(p.name): p.name for p in problem_specs}
-    problem_plot_budget = {
-        p.name: p.budget_for_plots for p in problem_specs
-    }
+    problem_plot_budget = {p.name: p.budget_for_plots for p in problem_specs}
     algorithm_slug_to_name = {safe_slug(a.name): a.name for a in algorithm_specs}
 
     # Scan for JSON files and group by (problem_name, problem_size)
@@ -173,7 +171,6 @@ def analyze_results(config: dict[str, Any]):
 
     # Load and parse all results
     for json_file in json_files:
-
         with open(json_file, "r") as f:
             data = json.load(f)
 
@@ -212,9 +209,9 @@ def analyze_results(config: dict[str, Any]):
             n=n,
             f_star=f_star,
             results=alg_budget_results,
-            budget_for_plots= problem_plot_budget[problem_name],
+            budget_for_plots=problem_plot_budget[problem_name],
             plotting_config=config["plotting"],
-            output_dir=config["suite"] ["output"]["figures_root"],
+            output_dir=config["suite"]["output"]["figures_root"],
         )
 
     print("\n[analyze] Analysis completed")

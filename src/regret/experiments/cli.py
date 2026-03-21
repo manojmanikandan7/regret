@@ -150,7 +150,8 @@ def main() -> int:
 
     # Analyze subcommand
     subparsers.add_parser(
-        "analyze", help="Regenerate plots from existing results obtained using the provided config"
+        "analyze",
+        help="Regenerate plots from existing results obtained using the provided config",
     )
 
     args = parser.parse_args()

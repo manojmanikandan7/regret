@@ -10,7 +10,6 @@ class OneMax(Problem):
     Droste, S., Jansen, T., & Wegener, I. (2002). On the analysis of the (1+1) evolutionary algorithm.
     """
 
-
     def evaluate(self, x: np.ndarray) -> float:
         """Compute fitness as the count of ones.
 
@@ -146,7 +145,7 @@ class Trap(Problem):
 
         Args:
             n: Dimension of the bitstring.
-            k: Width of the deceptive region. 
+            k: Width of the deceptive region.
                (n - k) gives the unitation z, at which the slope change occurs.
         """
         self.k = k

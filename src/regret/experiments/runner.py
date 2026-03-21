@@ -285,6 +285,7 @@ class BatchRunner:
         runs: int = 30,
         suite_name: str = "suite",
         parallel: bool = False,
+        algorithms_kwargs: dict[str, dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """Run all algorithm/budget combinations for a single problem.
 
@@ -295,12 +296,16 @@ class BatchRunner:
             runs: Number of seeded runs per (algorithm, budget) pair.
             suite_name: Prefix used when naming persisted experiments.
             parallel: Whether each experiment is executed in parallel.
+            algorithms_kwargs: Optional mapping of algorithm names to their
+                keyword arguments. If provided, must contain entries for each
+                algorithm in the algorithms dict.
 
         Returns:
             Mapping keyed by (algorithm_name, budget) to list of run results.
         """
 
         all_results = {}
+        algorithms_kwargs = algorithms_kwargs or {}
 
         for budget in budgets:
             print(f"\n{'=' * 60}")
@@ -309,8 +314,15 @@ class BatchRunner:
 
             for alg_name, alg_class in algorithms.items():
                 exp_name = f"{suite_name}_{alg_name}_b{budget}"
+                alg_kwargs = algorithms_kwargs.get(alg_name, {})
                 results = self.runner.run_experiment(
-                    alg_class, problem, budget, runs, name=exp_name, parallel=parallel
+                    alg_class,
+                    problem,
+                    budget,
+                    runs,
+                    name=exp_name,
+                    parallel=parallel,
+                    **alg_kwargs,
                 )
 
                 regrets = np.array([r["regret"] for r in results])

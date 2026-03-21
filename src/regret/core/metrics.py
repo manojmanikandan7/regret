@@ -64,7 +64,7 @@ def history_best_series(trajectory: Trajectory) -> list[tuple[int, float]]:
 
 
 def simple_regret(solution_value: float, f_star: float) -> float:
-    """Compute simple regret for a final solution value. 
+    """Compute simple regret for a final solution value.
 
     Args:
         solution_value: Objective value of the returned solution.
@@ -102,7 +102,7 @@ def cumulative_regret(
     approximation over the evaluation grid. At each time point t, the
     cumulative regret is the integral of instantaneous regret from
     time 0 to t.
-    
+
     Args:
         trajectory: Sequence of (evaluations, current_value, best_value) tuples.
         f_star: Global optimum value.

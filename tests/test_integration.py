@@ -23,8 +23,7 @@ class TestAlgorithmProblemIntegration:
         # Best value is monotonic and bounded by the known optimum.
         history_best = [best for _, _, best in rls.history]
         assert all(
-            history_best[i] <= history_best[i + 1]
-            for i in range(len(history_best) - 1)
+            history_best[i] <= history_best[i + 1] for i in range(len(history_best) - 1)
         )
         assert rls.best_value >= initial_best
         assert rls.best_value <= problem.get_optimum_value()
@@ -127,7 +126,7 @@ class TestBitflipOperations:
         assert [t for t, _, _ in rls.history] == list(range(1, n_steps + 2))
 
 
-class InstantaneousRegretTests: 
+class InstantaneousRegretTests:
     """Integration checks related to optimum detection in trajectories."""
 
     def best_value_regret_non_increasing(self):

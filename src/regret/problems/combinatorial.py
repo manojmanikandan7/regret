@@ -58,7 +58,7 @@ class MaxkSAT(Problem):
         """
         Return theoretical upper bound of satisfied clauses.
 
-        IMPORTANT NOTE: the theoretical upper bound is very rarely achievable in practice. 
+        IMPORTANT NOTE: the theoretical upper bound is very rarely achievable in practice.
         This means instantaneous regret will almost never reach zero, and cumulative regret will appear artificially high.
         The choice for the optimum chosen is intentional, but not appropriate for practical analyis.
         """

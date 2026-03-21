@@ -100,7 +100,7 @@ class RLSExploration(Algorithm):
             if neighbour_value >= self.current_value:
                 self.current = neighbour
                 self.current_value = neighbour_value
-        
+
         if self.current_value > self.best_value:
             self.best_value = self.current_value
             self.best_solution = self.current.copy()

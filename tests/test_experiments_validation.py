@@ -171,9 +171,7 @@ def test_validate_semantic_rejects_unknown_cooling_type_in_mapping() -> None:
 def test_validate_semantic_rejects_unknown_cooling_in_by_problem() -> None:
     """Problem-specific cooling overrides are semantically validated too."""
     config = _valid_config()
-    config["algorithms"][0]["args"]["by_problem"] = {
-        "OneMax": {"cooling": "not-valid"}
-    }
+    config["algorithms"][0]["args"]["by_problem"] = {"OneMax": {"cooling": "not-valid"}}
 
     with pytest.raises(ValidationError, match="Unknown cooling schedule"):
         validate_semantic(config)

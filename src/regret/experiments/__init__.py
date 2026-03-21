@@ -15,7 +15,7 @@ from regret.problems.pseudo_boolean import (
     Trap,
     BinVal,
     Plateau,
-    HIFF
+    HIFF,
 )
 from regret.problems.combinatorial import MaxkSAT
 from regret.problems.landscapes import NKLandscape
@@ -53,7 +53,7 @@ ALGORITHM_REGISTRY: dict[str, type[Algorithm]] = {
     "SA-Log": SimulatedAnnealing,
     "SA-Lin": SimulatedAnnealing,
     "SA-Exp": SimulatedAnnealing,
-    "MuPlusLambdaEA": MuPlusLambdaEA
+    "MuPlusLambdaEA": MuPlusLambdaEA,
 }
 
 COOLING_REGISTRY: dict[str, Callable[..., Callable[[int], float]]] = {

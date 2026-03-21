@@ -133,13 +133,15 @@ def parse_problems(config: dict[str, Any]) -> list[ProblemSpec]:
 
     prob_specs = []
     for p in problems_cfg:
-        budget_for_plots = int(p.get("budget_for_plots") or global_plot_budget or max_budget)
+        budget_for_plots = int(
+            p.get("budget_for_plots") or global_plot_budget or max_budget
+        )
         prob_specs.append(
             ProblemSpec(
                 name=p["name"],
                 class_name=p["class"],
                 params=p.get("params", {}),
-                budget_for_plots=budget_for_plots
+                budget_for_plots=budget_for_plots,
             )
         )
 
@@ -214,7 +216,7 @@ def generate_plots(
     f_star: float | None,
     results: dict[tuple[str, int], list[dict[str, Any]]],
     budget_for_plots: int,
-    plotting_config: dict[str, Any], 
+    plotting_config: dict[str, Any],
     output_dir: Path | str = "results/figures",
 ) -> None:
     """Generate plots for a problem's results based on config.
@@ -261,7 +263,8 @@ def generate_plots(
     dirs = {
         "aggregate": base_dir / structure.get("aggregate", "aggregate"),
         "history": base_dir / structure.get("history", "history"),
-        "distribution": base_dir / structure.get("distribution", f"budget_{budget_for_plots}")
+        "distribution": base_dir
+        / structure.get("distribution", f"budget_{budget_for_plots}"),
     }
     for d in dirs.values():
         d.mkdir(parents=True, exist_ok=True)
@@ -443,7 +446,9 @@ def generate_plots(
                 save_path=str(
                     dirs["history"] / _get_filename(plot_key, default_filename)
                 ),
-                title=_format_title(f"{title_suffix} Trajectory at Budget={budget_for_plots}"),
+                title=_format_title(
+                    f"{title_suffix} Trajectory at Budget={budget_for_plots}"
+                ),
                 series=series,
                 use_best=use_best,
                 log_x=cfg.get("log_x", False),

@@ -41,7 +41,7 @@ class NKLandscape(Problem):
         """
         fitness = 0.0
         for i in range(self.n):
-            # Get the K (epistatic) interaction indices from i. 
+            # Get the K (epistatic) interaction indices from i.
             # Note that i is also included in the interactions.
             indices = [i] + [(i + j + 1) % self.n for j in range(self.k)]
             key = sum(x[idx] * (2**j) for j, idx in enumerate(indices))
