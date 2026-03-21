@@ -22,10 +22,15 @@ def _valid_config() -> dict:
             "runs": 2,
             "mode": "lite",
             "budgets": [10, 20],
+            "output": {
+                "raw_root": "results/raw",
+                "figures_root": "results/figures",
+            },
         },
-        "problems": [{"class": "OneMax", "params": {"n": 8}}],
+        "problems": [{"name": "OneMax", "class": "OneMax", "params": {"n": 8}}],
         "algorithms": [
             {
+                "name": "RLS",
                 "class": "RLS",
                 "args": {
                     "defaults": {},
@@ -33,6 +38,9 @@ def _valid_config() -> dict:
                 },
             }
         ],
+        "plotting": {
+            "enabled": False,
+        },
     }
 
 
@@ -85,6 +93,24 @@ def test_validate_schema_rejects_additional_top_level_properties() -> None:
         validate_schema(config)
 
 
+def test_validate_schema_rejects_problem_without_name() -> None:
+    """Problem entries must provide an explicit name."""
+    config = _valid_config()
+    del config["problems"][0]["name"]
+
+    with pytest.raises(ValidationError, match="Schema validation failed"):
+        validate_schema(config)
+
+
+def test_validate_schema_rejects_algorithm_without_name() -> None:
+    """Algorithm entries must provide an explicit name."""
+    config = _valid_config()
+    del config["algorithms"][0]["name"]
+
+    with pytest.raises(ValidationError, match="Schema validation failed"):
+        validate_schema(config)
+
+
 def test_validate_semantic_rejects_unknown_problem_class() -> None:
     """Semantic validation should reject unknown problem classes."""
     config = _valid_config()
@@ -126,11 +152,60 @@ def test_validate_semantic_rejects_unknown_cooling_type_in_mapping() -> None:
 def test_validate_semantic_rejects_unknown_cooling_in_by_problem() -> None:
     """Problem-specific cooling overrides are semantically validated too."""
     config = _valid_config()
-    config["algorithms"][0]["args"]["by_problem"] = {
-        "OneMax": {"cooling": "nope"}
-    }
+    config["algorithms"][0]["args"]["by_problem"] = {"OneMax": {"cooling": "nope"}}
 
     with pytest.raises(ValidationError, match="Unknown cooling schedule"):
+        validate_semantic(config)
+
+
+def test_validate_semantic_rejects_duplicate_problem_names() -> None:
+    """Problem names should be unique for unambiguous by_problem mapping."""
+    config = _valid_config()
+    config["problems"] = [
+        {"name": "P", "class": "OneMax", "params": {"n": 8}},
+        {"name": "P", "class": "LeadingOnes", "params": {"n": 8}},
+    ]
+
+    with pytest.raises(ValidationError, match="Duplicate problem name"):
+        validate_semantic(config)
+
+
+def test_validate_semantic_rejects_duplicate_algorithm_names() -> None:
+    """Algorithm names should be unique for stable keys/legends."""
+    config = _valid_config()
+    config["algorithms"] = [
+        {"name": "A", "class": "RLS", "args": {"defaults": {}, "by_problem": {}}},
+        {
+            "name": "A",
+            "class": "RLSExploration",
+            "args": {"defaults": {}, "by_problem": {}},
+        },
+    ]
+
+    with pytest.raises(ValidationError, match="Duplicate algorithm name"):
+        validate_semantic(config)
+
+
+def test_validate_semantic_rejects_unknown_by_problem_target() -> None:
+    """by_problem overrides must target configured problem names."""
+    config = _valid_config()
+    config["algorithms"][0]["args"]["by_problem"] = {
+        "MissingProblem": {"cooling": "linear"}
+    }
+
+    with pytest.raises(ValidationError, match="unknown problem name"):
+        validate_semantic(config)
+
+
+def test_validate_semantic_rejects_redundant_cooling_keys() -> None:
+    """Config should use only one cooling key to avoid ambiguity."""
+    config = _valid_config()
+    config["algorithms"][0]["args"]["defaults"] = {
+        "cooling": "linear",
+        "T_func": "linear",
+    }
+
+    with pytest.raises(ValidationError, match="use only one of 'cooling' or 'T_func'"):
         validate_semantic(config)
 
 
@@ -140,7 +215,7 @@ def test_validate_cooling_schedule_ignores_absent_keys() -> None:
 
 
 def test_validate_config_no_plotting(tmp_path: Path) -> None:
-    """validate_config should fail when plotting config is missing."""
+    """validate_config should fail schema validation when plotting is missing."""
     cfg_path = tmp_path / "bad_no_plot.yaml"
     cfg_path.write_text(
         "\n".join(
@@ -150,12 +225,17 @@ def test_validate_config_no_plotting(tmp_path: Path) -> None:
                 "  runs: 2",
                 "  mode: lite",
                 "  budgets: [10, 20]",
+                "  output:",
+                "    raw_root: results/raw",
+                "    figures_root: results/figures",
                 "problems:",
-                "  - class: OneMax",
+                "  - name: OneMax",
+                "    class: OneMax",
                 "    params:",
                 "      n: 8",
                 "algorithms:",
-                "  - class: RLS",
+                "  - name: RLS",
+                "    class: RLS",
                 "    args:",
                 "      defaults: {}",
                 "      by_problem: {}",
@@ -165,8 +245,9 @@ def test_validate_config_no_plotting(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    with pytest.raises(ValidationError, match="missing required plotting configuration"):
+    with pytest.raises(ValidationError, match="Schema validation failed"):
         validate_config(cfg_path)
+
 
 def test_validate_config_end_to_end_success(tmp_path: Path) -> None:
     """validate_config should load and validate a good YAML config."""
@@ -179,12 +260,17 @@ def test_validate_config_end_to_end_success(tmp_path: Path) -> None:
                 "  runs: 2",
                 "  mode: lite",
                 "  budgets: [10, 20]",
+                "  output:",
+                "    raw_root: results/raw",
+                "    figures_root: results/figures",
                 "problems:",
-                "  - class: OneMax",
+                "  - name: OneMax",
+                "    class: OneMax",
                 "    params:",
                 "      n: 8",
                 "algorithms:",
-                "  - class: RLS",
+                "  - name: RLS",
+                "    class: RLS",
                 "    args:",
                 "      defaults: {}",
                 "      by_problem: {}",
@@ -213,16 +299,23 @@ def test_validate_config_end_to_end_semantic_failure(tmp_path: Path) -> None:
                 "  runs: 1",
                 "  mode: lite",
                 "  budgets: [10]",
+                "  output:",
+                "    raw_root: results/raw",
+                "    figures_root: results/figures",
                 "problems:",
-                "  - class: OneMax",
+                "  - name: OneMax",
+                "    class: OneMax",
                 "    params:",
                 "      n: 8",
                 "algorithms:",
-                "  - class: RLS",
+                "  - name: RLS",
+                "    class: RLS",
                 "    args:",
                 "      defaults:",
                 "        cooling: definitely-not-valid",
                 "      by_problem: {}",
+                "plotting:",
+                "  enabled: false",
             ]
         )
         + "\n",

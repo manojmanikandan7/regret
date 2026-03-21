@@ -54,7 +54,7 @@ def _write_result(
             }
         ],
     }
-    out_path.write_text(json.dumps(payload), encoding="utf-8")
+    out_path.write_text(json.dumps(payload, separators=(',', ':')), encoding="utf-8")
 
 
 def test_analyze_preserves_problem_slug_and_algorithm_uniqueness(
@@ -115,7 +115,7 @@ def test_analyze_preserves_problem_slug_and_algorithm_uniqueness(
                 "structure": {
                     "aggregate": "aggregate",
                     "history": "history",
-                    "distributions": "distributions",
+                    "distribution": "distribution",
                 },
             },
             "plots": {

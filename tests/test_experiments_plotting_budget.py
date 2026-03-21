@@ -19,6 +19,10 @@ def _base_config() -> dict:
             "runs": 2,
             "mode": "lite",
             "budgets": [10, 20, 50],
+            "output": {
+                "raw_root": "results/raw",
+                "figures_root": "results/figures",
+            },
         },
         "problems": [{"name": "OneMax", "class": "OneMax", "params": {"n": 8}}],
         "algorithms": [
@@ -28,6 +32,7 @@ def _base_config() -> dict:
                 "args": {"defaults": {}, "by_problem": {}},
             }
         ],
+        "plotting": {"enabled": False},
     }
 
 
@@ -44,6 +49,71 @@ def test_schema_accepts_problem_level_budget_for_plots() -> None:
     config["problems"][0]["budget_for_plots"] = 10
 
     # Should not raise schema validation errors.
+    validate_schema(config)
+
+
+def test_schema_accepts_optional_plotting_stats_keys() -> None:
+    config = _base_config()
+    config["plotting"] = {
+        "enabled": True,
+        "layout": {
+            "structure": {
+                "aggregate": "aggregate",
+                "history": "history",
+                "distribution": "distribution",
+            }
+        },
+        "plots": {
+            "regret_curves": {
+                "enabled": True,
+                "spread": "bootstrap_ci",
+                "confidence": 0.95,
+                "n_bootstrap": 256,
+                "annotate_pairwise": True,
+                "comparison_budget": 20,
+                "paired_runs": False,
+            },
+            "convergence_probability": {
+                "enabled": True,
+                "show_confidence_band": True,
+                "confidence": 0.9,
+            },
+            "regret_boxplots": {
+                "enabled": True,
+                "show_points": True,
+                "annotate_pairwise": True,
+                "reference_algorithm": "RLS",
+                "paired_runs": False,
+            },
+            "performance_profile": {
+                "enabled": True,
+                "annotate_pairwise": True,
+                "reference_algorithm": "RLS",
+                "paired_runs": False,
+            },
+            "history_current": {
+                "enabled": False,
+                "spread": "sd",
+                "confidence": 0.9,
+                "n_bootstrap": 128,
+            },
+            "regret_instantaneous": {
+                "enabled": False,
+                "spread": "iqr",
+                "confidence": 0.9,
+                "n_bootstrap": 128,
+            },
+            "ttfo_distribution": {
+                "enabled": False,
+                "tolerance": 1e-8,
+                "show_median": True,
+                "annotate_pairwise": True,
+                "reference_algorithm": "RLS",
+                "paired_runs": False,
+            },
+        },
+    }
+
     validate_schema(config)
 
 
@@ -118,7 +188,7 @@ def test_generate_plots_uses_selected_budget_for_budget_specific_outputs(
                 "structure": {
                     "aggregate": "aggregate",
                     "history": "history",
-                    "distributions": "distributions",
+                    "distribution": "distribution",
                 },
             },
             "plots": {
@@ -140,8 +210,8 @@ def test_generate_plots_uses_selected_budget_for_budget_specific_outputs(
 
     assert calls["boxplot"]["budget"] == 10
     assert calls["profile"]["budget"] == 10
-    assert "budget_10" in str(calls["boxplot"]["save_path"])
-    assert "budget_10" in str(calls["profile"]["save_path"])
+    assert "distribution" in str(calls["boxplot"]["save_path"])
+    assert "distribution" in str(calls["profile"]["save_path"])
 
 
 def test_generate_plots_problem_budget_overrides_global_budget(
@@ -203,7 +273,7 @@ def test_generate_plots_problem_budget_overrides_global_budget(
                 "structure": {
                     "aggregate": "aggregate",
                     "history": "history",
-                    "distributions": "distributions",
+                    "distribution": "distribution",
                 },
             },
             "plots": {
@@ -225,5 +295,5 @@ def test_generate_plots_problem_budget_overrides_global_budget(
 
     assert calls["boxplot"]["budget"] == 10
     assert calls["profile"]["budget"] == 10
-    assert "budget_10" in str(calls["boxplot"]["save_path"])
-    assert "budget_10" in str(calls["profile"]["save_path"])
+    assert "distribution" in str(calls["boxplot"]["save_path"])
+    assert "distribution" in str(calls["profile"]["save_path"])
