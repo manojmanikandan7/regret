@@ -148,6 +148,7 @@ CONFIG_SCHEMA = {
                                 "aggregate": {"type": "string"},
                                 "history": {"type": "string"},
                                 "distribution": {"type": "string"},
+                                "profile": {"type": "string"},
                             },
                             "additionalProperties": False,
                         },
@@ -428,6 +429,28 @@ CONFIG_SCHEMA = {
                                 "annotate_pairwise": {"type": "boolean"},
                                 "reference_algorithm": {"type": "string"},
                                 "paired_runs": {"type": "boolean"},
+                            },
+                        },
+                        "runtime_profile_surface": {
+                            "type": "object",
+                            "properties": {
+                                "enabled": {"type": "boolean"},
+                                "filename": {"type": "string"},
+                                "description": "include `{algorithm}` as placeholder in the filename",
+                            },
+                        },
+                        "runtime_profile_curves": {
+                            "type": "object",
+                            "properties": {
+                                "enabled": {"type": "boolean"},
+                                "filename": {"type": "string"},
+                            },
+                        },
+                        "cr_profile_verification": {
+                            "type": "object",
+                            "properties": {
+                                "enabled": {"type": "boolean"},
+                                "filename": {"type": "string"},
                             },
                         },
                     },

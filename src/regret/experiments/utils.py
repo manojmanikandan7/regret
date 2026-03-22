@@ -14,6 +14,9 @@ from regret.analysis.plotting import (
     plot_history,
     plot_performance_profile,
     plot_regret_curves,
+    plot_runtime_profile_curves,
+    plot_runtime_profile_surface,
+    plot_cr_profile_verification,
     plot_simple_regret_boxplots,
     plot_simple_regret_curves,
     plot_ttfo_distribution,
@@ -54,6 +57,44 @@ def safe_slug(text: str) -> str:
     for old, new in replacements:
         result = result.replace(old, new)
     return result
+
+
+def is_plot_enabled(
+    plots_cfg: dict[str, Any],
+    plot_key: str,
+    default: bool = True,
+) -> bool:
+    """Return whether a plot is enabled in config with a default fallback."""
+    if plot_key not in plots_cfg:
+        return default
+    cfg = plots_cfg[plot_key]
+    if not isinstance(cfg, dict):
+        return default
+    return bool(cfg.get("enabled", default))
+
+
+def get_plot_filename(
+    plots_cfg: dict[str, Any],
+    plot_key: str,
+    default: str,
+) -> str:
+    """Return configured filename for a plot key or a safe default."""
+    if plot_key not in plots_cfg:
+        return default
+    cfg = plots_cfg[plot_key]
+    if not isinstance(cfg, dict):
+        return default
+    value = cfg.get("filename", default)
+    return value if isinstance(value, str) else default
+
+
+def merge_plot_title(prefix: str | None, subject: str) -> str:
+    """Compose a plot title from optional prefix and subject."""
+    if not prefix:
+        return subject
+    if not subject:
+        return prefix
+    return f"{prefix}: {subject}"
 
 
 def deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
@@ -252,6 +293,15 @@ def generate_plots(
     include_problem_name = bool(titles_cfg.get("include_problem_name", True))
     include_problem_size = bool(titles_cfg.get("include_problem_size", True))
 
+    TITLE_PREFIX = " - ".join(
+        part
+        for part in [
+            problem_name if include_problem_name else "",
+            f"n={n}" if include_problem_size else "",
+        ]
+        if part
+    )
+
     base_dir = Path(output_dir) / safe_slug(suite_name)
     if per_problem_dir:
         base_dir = base_dir / safe_slug(problem_name)
@@ -259,53 +309,31 @@ def generate_plots(
         base_dir = base_dir / f"n{n}"
 
     # Define output directories from config or defaults
-    structure = layout_cfg.get("structure")
+    structure = layout_cfg.get("structure", {})
     dirs = {
         "aggregate": base_dir / structure.get("aggregate", "aggregate"),
         "history": base_dir / structure.get("history", "history"),
         "distribution": base_dir
         / structure.get("distribution", f"budget_{budget_for_plots}"),
+        "profile": base_dir / structure.get("profile", "profiles"),
     }
     for d in dirs.values():
         d.mkdir(parents=True, exist_ok=True)
-
-    def _is_enabled(plot_key: str, default: bool = True) -> bool:
-        """Check if a plot is enabled in config with configurable default."""
-        if plot_key not in plots_cfg:
-            return default
-        return plots_cfg[plot_key].get("enabled", default)
-
-    def _get_filename(plot_key: str, default: str) -> str:
-        """Get filename from config or use default."""
-        if plot_key not in plots_cfg:
-            return default
-        return plots_cfg[plot_key].get("filename", default)
 
     def _optional_kwargs(cfg: dict[str, Any], keys: list[str]) -> dict[str, Any]:
         """Forward only explicitly configured plotting kwargs."""
         return {k: cfg[k] for k in keys if k in cfg}
 
-    def _format_title(subject: str) -> str:
-        """Compose plot title using config flags."""
-        context: list[str] = []
-        if include_problem_name:
-            context.append(problem_name)
-        if include_problem_size:
-            context.append(f"n={n}")
-        prefix = " - ".join(context)
-        if prefix and subject:
-            return f"{prefix}: {subject}"
-        return prefix or subject
-
     # Aggregate plots (across budgets)
-    if _is_enabled("regret_curves"):
+    if is_plot_enabled(plots_cfg, "regret_curves"):
         cfg = plots_cfg["regret_curves"]
         plot_simple_regret_curves(
             results,
             save_path=str(
-                dirs["aggregate"] / _get_filename("regret_curves", "regret_curves.pdf")
+                dirs["aggregate"]
+                / get_plot_filename(plots_cfg, "regret_curves", "regret_curves.pdf")
             ),
-            title=_format_title("Mean Simple Regret vs Budget"),
+            title=merge_plot_title(TITLE_PREFIX, "Mean Simple Regret vs Budget"),
             log_scale=cfg.get("log_scale", True),
             **_optional_kwargs(
                 cfg,
@@ -321,33 +349,37 @@ def generate_plots(
             show=False,
         )
 
-    if _is_enabled("convergence_probability"):
+    if is_plot_enabled(plots_cfg, "convergence_probability"):
         cfg = plots_cfg["convergence_probability"]
         plot_convergence_probability(
             results,
             save_path=str(
                 dirs["aggregate"]
-                / _get_filename(
-                    "convergence_probability", "convergence_probability.pdf"
+                / get_plot_filename(
+                    plots_cfg, "convergence_probability", "convergence_probability.pdf"
                 )
             ),
-            title=_format_title("Probability of Optimum vs Budget"),
+            title=merge_plot_title(TITLE_PREFIX, "Probability of Optimum vs Budget"),
             **_optional_kwargs(cfg, ["show_confidence_band", "confidence"]),
             show=False,
         )
 
-    if _is_enabled("comparison_heatmap"):
+    if is_plot_enabled(plots_cfg, "comparison_heatmap"):
         plot_comparison_heatmap(
             results,
             save_path=str(
                 dirs["aggregate"]
-                / _get_filename("comparison_heatmap", "comparison_heatmap.pdf")
+                / get_plot_filename(
+                    plots_cfg,
+                    "comparison_heatmap",
+                    "comparison_heatmap.pdf",
+                )
             ),
             show=False,
         )
 
     # Budget-specific plots
-    if _is_enabled("regret_boxplots"):
+    if is_plot_enabled(plots_cfg, "regret_boxplots"):
         cfg = plots_cfg["regret_boxplots"]
         filename = cfg.get("filename", "regret_boxplot_b{budget}.pdf").format(
             budget=budget_for_plots
@@ -356,7 +388,9 @@ def generate_plots(
             results,
             budget=budget_for_plots,
             save_path=str(dirs["distribution"] / filename),
-            title=_format_title(f"Regret Distribution at Budget={budget_for_plots}"),
+            title=merge_plot_title(
+                TITLE_PREFIX, f"Regret Distribution at Budget={budget_for_plots}"
+            ),
             **_optional_kwargs(
                 cfg,
                 [
@@ -369,7 +403,7 @@ def generate_plots(
             show=False,
         )
 
-    if _is_enabled("performance_profile"):
+    if is_plot_enabled(plots_cfg, "performance_profile"):
         cfg = plots_cfg["performance_profile"]
         filename = cfg.get("filename", "performance_profile_b{budget}.pdf").format(
             budget=budget_for_plots
@@ -378,7 +412,9 @@ def generate_plots(
             results,
             budget=budget_for_plots,
             save_path=str(dirs["distribution"] / filename),
-            title=_format_title(f"Performance Profile at Budget={budget_for_plots}"),
+            title=merge_plot_title(
+                TITLE_PREFIX, f"Performance Profile at Budget={budget_for_plots}"
+            ),
             **_optional_kwargs(
                 cfg,
                 ["annotate_pairwise", "reference_algorithm", "paired_runs"],
@@ -395,7 +431,7 @@ def generate_plots(
     # These plot "current" or "best" series
     history_plot_keys = ["history_current", "history_best"]
     for plot_key in history_plot_keys:
-        if _is_enabled(plot_key) and f_star is not None:
+        if is_plot_enabled(plots_cfg, plot_key) and f_star is not None:
             cfg = plots_cfg[plot_key]
             series = cfg.get("series", "current" if "current" in plot_key else "best")
             default_filename = f"{plot_key}.pdf"
@@ -403,10 +439,12 @@ def generate_plots(
                 history_results,
                 f_star=f_star,
                 save_path=str(
-                    dirs["history"] / _get_filename(plot_key, default_filename)
+                    dirs["history"]
+                    / get_plot_filename(plots_cfg, plot_key, default_filename)
                 ),
-                title=_format_title(
-                    f"{series.title()} Value Trajectory at Budget={budget_for_plots}"
+                title=merge_plot_title(
+                    TITLE_PREFIX,
+                    f"{series.title()} Value Trajectory at Budget={budget_for_plots}",
                 ),
                 series=series,
                 log_x=cfg.get("log_x", False),
@@ -425,7 +463,7 @@ def generate_plots(
         "regret_cumulative_best",
     ]
     for plot_key in regret_plot_keys:
-        if _is_enabled(plot_key) and f_star is not None:
+        if is_plot_enabled(plots_cfg, plot_key) and f_star is not None:
             cfg = plots_cfg[plot_key]
             # Infer series from key name
             if "instantaneous" in plot_key:
@@ -444,10 +482,12 @@ def generate_plots(
                 history_results,
                 f_star=f_star,
                 save_path=str(
-                    dirs["history"] / _get_filename(plot_key, default_filename)
+                    dirs["history"]
+                    / get_plot_filename(plots_cfg, plot_key, default_filename)
                 ),
-                title=_format_title(
-                    f"{title_suffix} Trajectory at Budget={budget_for_plots}"
+                title=merge_plot_title(
+                    TITLE_PREFIX,
+                    f"{title_suffix} Trajectory at Budget={budget_for_plots}",
                 ),
                 series=series,
                 use_best=use_best,
@@ -459,16 +499,22 @@ def generate_plots(
             )
 
     # TTFO distribution plot
-    if _is_enabled("ttfo_distribution"):
+    if is_plot_enabled(plots_cfg, "ttfo_distribution"):
         cfg = plots_cfg["ttfo_distribution"]
         plot_ttfo_distribution(
             results=history_results,
             f_star=f_star,
             save_path=str(
                 dirs["history"]
-                / _get_filename("ttfo_distribution", "history_ttfo_markers.pdf")
+                / get_plot_filename(
+                    plots_cfg,
+                    "ttfo_distribution",
+                    "history_ttfo_markers.pdf",
+                )
             ),
-            title=_format_title(f"TTFO Samples at Budget={budget_for_plots}"),
+            title=merge_plot_title(
+                TITLE_PREFIX, f"TTFO Samples at Budget={budget_for_plots}"
+            ),
             **_optional_kwargs(
                 cfg,
                 [
@@ -481,3 +527,88 @@ def generate_plots(
             ),
             show=False,
         )
+
+    profile_plot_keys = [
+        "runtime_profile_surface",
+        "runtime_profile_curves",
+        "cr_profile_verification",
+    ]
+    if f_star is not None and any(
+        is_plot_enabled(plots_cfg, k, default=True) for k in profile_plot_keys
+    ):
+        from regret.analysis.profiles import run_profile_analysis
+
+        profile_cfg = {k: plots_cfg.get(k, {}) for k in profile_plot_keys}
+        time_grid, fitness_levels, profiles, empirical_ecr, profile_ecr = (
+            run_profile_analysis(
+                results=history_results,
+                f_star=f_star,
+                budget=budget_for_plots,
+            )
+        )
+
+        if is_plot_enabled(profile_cfg, "runtime_profile_surface"):
+            for alg_name, profile in profiles.items():
+                plot_runtime_profile_surface(
+                    profile=profile,
+                    fitness_levels=fitness_levels,
+                    time_grid=time_grid,
+                    f_star=f_star,
+                    save_path=str(
+                        dirs["profile"]
+                        / get_plot_filename(
+                            profile_cfg,
+                            "runtime_profile_surface",
+                            "runtime_profile_surface_{algorithm}.pdf",
+                        ).format(algorithm=alg_name),
+                    ),
+                    show=False,
+                    title=merge_plot_title(
+                        TITLE_PREFIX,
+                        f"{alg_name}: runtime profile surface",
+                    ),
+                )
+
+        if is_plot_enabled(profile_cfg, "runtime_profile_curves") and profiles:
+            selected_levels = [f_star * q for q in [0.25, 0.5, 0.75, 0.95]]
+            plot_runtime_profile_curves(
+                profiles=profiles,
+                fitness_levels=fitness_levels,
+                time_grid=time_grid,
+                selected_levels=selected_levels,
+                f_star=f_star,
+                save_path=str(
+                    dirs["profile"]
+                    / get_plot_filename(
+                        profile_cfg,
+                        "runtime_profile_curves",
+                        "runtime_profile_curves.pdf",
+                    ),
+                ),
+                show=False,
+                title=merge_plot_title(TITLE_PREFIX, "P(\\tau_v <= T) by algorithm"),
+            )
+
+        if (
+            empirical_ecr
+            and profile_ecr
+            and is_plot_enabled(profile_cfg, "cr_profile_verification")
+        ):
+            plot_cr_profile_verification(
+                empirical_ecr=empirical_ecr,
+                profile_ecr=profile_ecr,
+                time_grid=time_grid,
+                save_path=str(
+                    dirs["profile"]
+                    / get_plot_filename(
+                        profile_cfg,
+                        "cr_profile_verification",
+                        "cr_profile_verification.pdf",
+                    ),
+                ),
+                show=False,
+                title=merge_plot_title(
+                    TITLE_PREFIX,
+                    "E[CR(T)]: direct vs profile identity",
+                ),
+            )

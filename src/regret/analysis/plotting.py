@@ -936,3 +936,180 @@ def plot_ttfo_distribution(
         _draw_pairwise_annotation(ax, text)
 
     _finalize_figure(fig, save_path=save_path, show=show)
+
+
+def plot_runtime_profile_surface(
+    profile: np.ndarray,
+    fitness_levels: np.ndarray,
+    time_grid: np.ndarray,
+    f_star: float,
+    save_path: str | None = None,
+    show: bool = True,
+    title: str | None = None,
+    n_contours: int = 6,
+):
+    """Visualize runtime profile P(\\tau_v <= T) as a 2D heatmap with contours.
+
+    Args:
+        profile: Runtime profile array of shape (F, T) from compute_runtime_profile.
+        fitness_levels: Fitness level thresholds (rows, shape F).
+        time_grid: Evaluation time points (columns, shape T).
+        algorithm_name: Algorithm name (used in logging).
+        f_star: Global optimum fitness value (marked as reference line).
+        save_path: Path to save figure as PDF. If None, not saved.
+        show: Whether to display the figure.
+        title: Optional title for the plot.
+        n_contours: Number of contour levels to draw.
+
+    Returns:
+        None. Saves and/or displays the figure based on save_path and show.
+    """
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    # Heatmap
+    im = ax.imshow(
+        profile,
+        origin="lower",
+        aspect="auto",
+        extent=(time_grid[0], time_grid[-1], fitness_levels[0], fitness_levels[-1]),
+        cmap="viridis",
+        vmin=0.0,
+        vmax=1.0,
+    )
+    plt.colorbar(im, ax=ax, label="P(\\tau_v <= T)")
+
+    # Contour lines at evenly spaced probability values
+    levels = np.linspace(0.1, 0.9, n_contours)
+    T_grid_2d, V_grid_2d = np.meshgrid(time_grid, fitness_levels)
+    ax.contour(
+        T_grid_2d,
+        V_grid_2d,
+        profile,
+        levels=levels,
+        colors="white",
+        linewidths=0.8,
+        alpha=0.6,
+    )
+
+    ax.axhline(f_star, color="red", linestyle="--", linewidth=2, label="f*")
+    ax.set_xlabel("Evaluations (T)")
+    ax.set_ylabel("Fitness level (v)")
+    if title:
+        ax.set_title(title)
+    ax.legend()
+
+    _finalize_figure(fig, save_path=save_path, show=show)
+
+
+def plot_runtime_profile_curves(
+    profiles: dict[str, np.ndarray],
+    fitness_levels: np.ndarray,
+    time_grid: np.ndarray,
+    selected_levels: list[float],
+    f_star: float,
+    save_path: str | None = None,
+    show: bool = True,
+    title: str | None = None,
+):
+    """Compare runtime profiles across algorithms at selected fitness levels.
+
+    Plots P(\\tau_v <= T) vs T for each algorithm at representative fitness thresholds.
+
+    Args:
+        profiles: Mapping of algorithm name -> runtime profile array (F, T).
+        fitness_levels: Fitness level thresholds (shape F).
+        time_grid: Evaluation time points (shape T).
+        selected_levels: List of fitness levels to plot (subselect from fitness_levels).
+        f_star: Global optimum fitness value.
+        save_path: Path to save figure as PDF. If None, not saved.
+        show: Whether to display the figure.
+        title: Optional title for the plot.
+
+    Returns:
+        None. Saves and/or displays the figure based on save_path and show.
+    """
+    fig, axes = plt.subplots(
+        1, len(selected_levels), figsize=(5 * len(selected_levels), 5), sharey=True
+    )
+    if len(selected_levels) == 1:
+        axes = [axes]
+
+    for ax, level in zip(axes, selected_levels):
+        # Find closest index in fitness_levels
+        idx = int(np.argmin(np.abs(fitness_levels - level)))
+        actual_level = fitness_levels[idx]
+
+        for alg_name, profile in profiles.items():
+            ax.plot(time_grid, profile[idx, :], label=alg_name, linewidth=2)
+
+        ax.set_title(f"v = {actual_level:.0f}")
+        ax.set_xlabel("Evaluations (T)")
+        ax.set_ylim(-0.05, 1.05)
+        ax.axhline(1.0, color="black", linestyle=":", linewidth=0.8, alpha=0.5)
+        ax.grid(True, alpha=0.3)
+
+    axes[0].set_ylabel("P(\\tau_v <= T)")
+    axes[-1].legend()
+
+    if title:
+        fig.suptitle(title)
+
+    _finalize_figure(fig, save_path=save_path, show=show)
+
+
+def plot_cr_profile_verification(
+    empirical_ecr: dict[str, np.ndarray],
+    profile_ecr: dict[str, np.ndarray],
+    time_grid: np.ndarray,
+    save_path: str | None = None,
+    show: bool = True,
+    title: str | None = None,
+):
+    """Verify layer-cake identity by comparing E[CR(T)] from two derivations.
+
+    Plots expected cumulative regret computed both directly (from per-run CR)
+    and via the runtime profile.
+      - Direct: mean of per-run cumulative regret (use_best=True)
+      - Profile: Sum_{v=1}^{f*} Sum_{t'=1}^{T} [1 - P(\\tau_v <= t')] {P(\\tau_v <=)}
+    They should match; any gap indicates an error
+    in trajectory recording or metric computation.
+    NOTE: The layer-cake identity is a theorem about integer-valued, unit-increment fitness functions.
+    This verification is not applicable for problem with fitness functions
+    that are distributed exponentially, for instance (e.g. BinVal).
+
+    Args:
+        empirical_ecr: Mapping of algorithm name -> E[CR(T)] from direct calculation.
+        profile_ecr: Mapping of algorithm name -> E[CR(T)] from runtime profile.
+        time_grid: Evaluation time points at which CR was computed.
+        save_path: Path to save figure as PDF. If None, not saved.
+        show: Whether to display the figure.
+        title: Optional title for the plot.
+
+    Returns:
+        None. Saves and/or displays the figure based on save_path and show.
+    """
+    fig, ax = plt.subplots()
+    colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
+
+    for i, alg in enumerate(empirical_ecr):
+        c = colors[i % len(colors)]
+        ax.plot(
+            time_grid, empirical_ecr[alg], color=c, linewidth=2, label=f"{alg} (direct)"
+        )
+        ax.plot(
+            time_grid,
+            profile_ecr[alg],
+            color=c,
+            linewidth=2,
+            linestyle="--",
+            label=f"{alg} (profile)",
+        )
+
+    ax.set_xlabel("Evaluations (T)")
+    ax.set_ylabel("E[CR(T)] - incumbent regret")
+    if title:
+        ax.set_title(title)
+    ax.legend(fontsize=8)
+    ax.grid(True, alpha=0.3)
+
+    _finalize_figure(fig, save_path=save_path, show=show)
