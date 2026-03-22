@@ -116,6 +116,14 @@ class MuPlusLambdaEA(Algorithm):
             offspring_fitness.append(fitness)
             self.evaluations += 1
 
+            # update best before recording so best_value is always consistent
+            if fitness > self.best_value:
+                self.best_value = fitness
+                self.best_solution = child.copy()
+            self._record_history(
+                fitness
+            )  # records actual evaluation, not population best
+
         # Combine and select
         combined = self.population + offspring
         combined_fitness = self.fitness + offspring_fitness
@@ -124,12 +132,7 @@ class MuPlusLambdaEA(Algorithm):
         self.population = [combined[i] for i in indices]
         self.fitness = [combined_fitness[i] for i in indices]
 
-        best_idx = np.argmax(self.fitness)
-        if self.fitness[best_idx] > self.best_value:
-            self.best_value = self.fitness[best_idx]
-            self.best_solution = self.population[best_idx].copy()
-
-        # Here, the best_value from the population is considered the current value
-        # NOTE: Change to all values of the population, if really neccessary
-        #       WARN: Breaks instantaneous regret and cummulative regret calcs
-        self._record_history(self.best_value)
+        # # Here, the best_value from the population is considered the current value
+        # # NOTE: Change to all values of the population, if really neccessary
+        # #       WARN: Breaks instantaneous regret and cummulative regret calcs
+        # self._record_history(self.best_value)
