@@ -139,12 +139,6 @@ def analyze_results(config: dict[str, Any]):
     import json
     from collections import defaultdict
 
-    # Determine results directory
-    results_dir = Path(config["suite"]["output"]["raw_root"])
-
-    if not results_dir.exists():
-        raise FileNotFoundError(f"Results directory not found: {results_dir}")
-
     plotting_enabled = config["plotting"]["enabled"]
     if not plotting_enabled:
         print("STOPPING: plotting not enabled")
@@ -162,6 +156,13 @@ def analyze_results(config: dict[str, Any]):
     # Scan for JSON files and group by (problem_name, problem_size)
     results_by_problem = defaultdict(dict)
     f_star_by_problem = {}
+
+    # Determine results directory
+    results_dir = Path(config["suite"]["output"]["raw_root"]) / suite_name
+
+    if not results_dir.exists():
+        raise FileNotFoundError(f"Results directory not found: {results_dir}")
+
     json_files = list(results_dir.glob("**/*.json"))
 
     if not json_files:
