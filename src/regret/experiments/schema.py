@@ -435,8 +435,10 @@ CONFIG_SCHEMA = {
                             "type": "object",
                             "properties": {
                                 "enabled": {"type": "boolean"},
-                                "filename": {"type": "string"},
-                                "description": "include `{algorithm}` as placeholder in the filename",
+                                "filename": {
+                                    "type": "string",
+                                    "description": "Include `{algorithm}` as a placeholder in the filename",
+                                },
                             },
                         },
                         "runtime_profile_curves": {
