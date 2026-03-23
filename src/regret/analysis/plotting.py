@@ -917,6 +917,7 @@ def plot_ttfo_distribution(
                 linestyle="--",
                 linewidth=1.5,
                 alpha=0.9,
+                label=f"{alg} Median",
             )
 
     ax.set_xlabel("Evaluations")
@@ -976,7 +977,7 @@ def plot_runtime_profile_surface(
         vmin=0.0,
         vmax=1.0,
     )
-    plt.colorbar(im, ax=ax, label="P(\\tau_v <= T)")
+    plt.colorbar(im, ax=ax, label="$P(\\tau_v \\leq T)$")
 
     # Contour lines at evenly spaced probability values
     levels = np.linspace(0.1, 0.9, n_contours)
@@ -1048,7 +1049,7 @@ def plot_runtime_profile_curves(
         ax.axhline(1.0, color="black", linestyle=":", linewidth=0.8, alpha=0.5)
         ax.grid(True, alpha=0.3)
 
-    axes[0].set_ylabel("P(\\tau_v <= T)")
+    axes[0].set_ylabel("$P(\\tau_v \\leq T)$")
     axes[-1].legend()
 
     if title:

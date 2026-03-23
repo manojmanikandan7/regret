@@ -10,13 +10,13 @@ Classical theoretical analysis of randomised search heuristics has long relied o
 
 - Difficult to apply empirically across diverse problem landscapes;
 - Primarily suited to convergence-time arguments rather than characterising *quality* of intermediate solutions.
-- A good indicator of bounds to sample (or 'drift' toward) the optimum; 
+- A good indicator of bounds to sample (or 'drift' toward) the optimum;
   however, it does not provide information on the asymtotic performance of the algorithm
 
 This project investigates whether **regret**, a metric borrowed from reinforcement learning (utilized in online learning and bandits), can serve as a practical, empirically-grounded alternative for characterising algorithm behaviour across the same domain. Three forms of regret are tracked:
 
 | Regret Type | Definition |
-|---|---|
+| --- | --- |
 | **Simple Regret** | `f* − f(best)` at the end of a budget |
 | **Instantaneous Regret** | `f* − f(x_t)` at each evaluation step `t` |
 | **Cumulative Regret** | Running integral of instantaneous regret over time |
@@ -73,7 +73,7 @@ python -m regret.experiments <config.yaml> <command>
 ### Commands
 
 | Command | Description |
-|---|---|
+| --- | --- |
 | `validate` | Parse and validate a YAML config without running anything |
 | `plan` | Print a dry-run summary: problem/algorithm combinations, total runs, budgets |
 | `run` | Execute all experiments and generate plots |
@@ -100,7 +100,7 @@ run_experiment configs/experiments/01_baseline.yaml analyze
 
 ## Project Structure
 
-```
+```bash
 regret/
 ├── configs/
 │   └── experiments/
@@ -148,7 +148,7 @@ regret/
 Experiments are fully specified via YAML files. The pipeline is:
 
 ```
-YAML File → load_config → validate_schema (JSON Schema) → validate_semantic (registry checks) → parse_problems / parse_algorithms → execute / generate_plots
+YAML File -> load_config -> validate_schema (JSON Schema) -> validate_semantic (registry checks) -> parse_problems / parse_algorithms -> execute / generate_plots
 ```
 
 ### Config Structure
@@ -215,10 +215,10 @@ plotting:
 
 ---
 
-## Problems
+## Combinatorial Problems Analysed
 
 | Name | Class | Description | Optimum |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | OneMax | `OneMax` | Count of ones | n |
 | LeadingOnes | `LeadingOnes` | Length of leading-ones prefix | n |
 | TwoMax | `TwoMax` | max(ones, zeros) - bioptimal (symmetrical optimum analysis) | n |
@@ -228,7 +228,7 @@ plotting:
 | Plateau-k | `Plateau` | OneMax with a flat plateau near the top | n |
 | HIFF | `HIFF` | Hierarchical if-and-only-if (n must be power of 2) | n·(log₂n + 1) |
 | MaxkSAT | `MaxkSAT` | Random k-SAT clause satisfaction (maximisation) | m (all clauses) |
-| NK-k | `NKLandscape` | Tunable-ruggedness fitness landscape | exhaustive search (n ≤ 20) |
+| NK-k | `NKLandscape` | Tunable-ruggedness fitness landscape | exhaustive search (n <= 20) |
 
 ---
 
