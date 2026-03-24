@@ -37,6 +37,11 @@ CONFIG_SCHEMA = {
                     "default": True,
                     "description": "Whether to run experiments in parallel (default: true)",
                 },
+                "profile": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": "Enable runtime profiling analysis outputs (default: false)",
+                },
                 "budgets": {
                     "type": "array",
                     "minItems": 1,

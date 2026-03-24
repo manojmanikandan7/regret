@@ -99,6 +99,7 @@ def run_profile_analysis(
             )
             cr_matrix.append(interpolated)
         if cr_matrix:
+            # Averages cumulative regret across runs (empirical mean at each eval point t)
             empirical_ecr[alg_name] = np.mean(cr_matrix, axis=0)
 
     return time_grid, fitness_levels, profiles, empirical_ecr, profile_ecr

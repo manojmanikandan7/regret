@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from .utils import (
+    export_runtime_profile_data,
     get_algorithm_class,
     instantiate_problem,
     parse_algorithms,
@@ -70,6 +71,7 @@ def execute_experiments(config: dict[str, Any], plot: bool = True) -> None:
     runs = int(suite_cfg["runs"])
     mode = suite_cfg["mode"]
     parallel = suite_cfg["parallel"]
+    runtime_profiling_enabled = bool(suite_cfg.get("profile", False))
     budgets = [int(b) for b in suite_cfg["budgets"]]
 
     problem_specs = parse_problems(config)
@@ -126,6 +128,23 @@ def execute_experiments(config: dict[str, Any], plot: bool = True) -> None:
                 output_dir=figures_root,
             )
 
+        if runtime_profiling_enabled:
+            export_runtime_profile_data(
+                suite_name=suite_name,
+                problem_name=problem_spec.name,
+                n=problem.n,
+                f_star=getattr(problem, "f_star", None),
+                results=all_results,
+                budget_for_plots=problem_spec.budget_for_plots,
+                plotting_config=config["plotting"],
+                raw_output_dir=suite_cfg["output"]["raw_root"],
+                figures_output_dir=(
+                    suite_cfg["output"]["figures_root"]
+                    if plot and config["plotting"]["enabled"]
+                    else None
+                ),
+            )
+
 
 def analyze_results(config: dict[str, Any]):
     """Regenerate plots from existing experiment results.
@@ -145,6 +164,7 @@ def analyze_results(config: dict[str, Any]):
         return
 
     suite_name = config["suite"]["name"]
+    runtime_profiling_enabled = bool(config["suite"].get("profile", False))
     problem_specs = parse_problems(config)
     algorithm_specs = parse_algorithms(config)
 
@@ -214,5 +234,18 @@ def analyze_results(config: dict[str, Any]):
             plotting_config=config["plotting"],
             output_dir=config["suite"]["output"]["figures_root"],
         )
+
+        if runtime_profiling_enabled:
+            export_runtime_profile_data(
+                suite_name=suite_name,
+                problem_name=problem_name,
+                n=n,
+                f_star=f_star,
+                results=alg_budget_results,
+                budget_for_plots=problem_plot_budget[problem_name],
+                plotting_config=config["plotting"],
+                raw_output_dir=config["suite"]["output"]["raw_root"],
+                figures_output_dir=config["suite"]["output"]["figures_root"],
+            )
 
     print("\n[analyze] Analysis completed")
