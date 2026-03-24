@@ -1,0 +1,35 @@
+[project]
+site_name = "Regret"
+site_url = "https://manojmanikandan7.github.io/regret/"
+repo_url = "https://github.com/manojmanikandan7/regret"
+repo_name = "manojmanikandan7/regret"
+
+nav = [
+  { "Home" = "index.md" },
+  { "Installation" = "installation.md" },
+  { "Usage" = "usage.md" },
+  { "API Reference" = [
+    { "Overview" = "api.md" },
+    { "Core" = "api/core.md" },
+    { "Algorithms" = "api/algorithms.md" },
+    { "Problems" = "api/problems.md" },
+    { "Experiments" = "api/experiments.md" },
+    { "Analysis" = "api/analysis.md" },
+    { "CLI" = "api/cli.md" },
+  ] },
+]
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: light)"
+scheme = "default"
+toggle.icon = "material/brightness-7"
+toggle.name = "Switch to dark mode"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: dark)"
+scheme = "slate"
+toggle.icon = "material/brightness-4"
+toggle.name = "Switch to light mode"
+
+[project.plugins.mkdocstrings.handlers.python]
+paths = ["src"]
