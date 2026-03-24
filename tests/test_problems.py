@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from regret.problems.combinatorial import MaxkSAT
+from regret.problems.combinatorial import MaxkSAT, PetersenColoringMaxSAT
 from regret.problems.landscapes import NKLandscape
 from regret.problems.pseudo_boolean import (
     HIFF,
@@ -323,6 +323,69 @@ class TestMaxkSAT:
         """Reported optimum value is the theoretical upper bound m."""
         problem = MaxkSAT(n=7, m=11, k=3, seed=7)
         assert problem.get_optimum_value() == 11.0
+
+
+class TestPetersenColoringMaxSAT:
+    """Test suite for PetersenColoringMaxSAT problem."""
+
+    def test_petersen_fixed_parameters(self):
+        """PetersenColoringMaxSAT has fixed graph size and colors."""
+        problem = PetersenColoringMaxSAT()
+        # n = 10 vertices * 3 colors = 30 variables
+        assert problem.n == 30
+        # 85 clauses for complete graph coloring constraints
+        assert problem.m == 85
+
+    def test_petersen_optimum_is_all_clauses(self):
+        """Petersen graph is 3-colorable, so optimum = m."""
+        problem = PetersenColoringMaxSAT()
+        assert problem.get_optimum_value() == 85.0
+
+    def test_petersen_evaluation_works(self):
+        """PetersenColoringMaxSAT evaluation should return a valid clause count."""
+        problem = PetersenColoringMaxSAT()
+        # Test a random bitstring
+        x = np.random.randint(0, 2, size=30)
+        value = problem.evaluate(x)
+
+        # Evaluation should return a clause count from 0 to m
+        assert isinstance(value, float)
+        assert 0.0 <= value <= 85.0
+
+    def test_petersen_incomplete_coloring_fails(self):
+        """A vertex without assigned color should fail some clauses."""
+        problem = PetersenColoringMaxSAT()
+        x = np.zeros(30, dtype=int)
+        # Only assign colors to vertices 0-7, leave 8-9 uncolored
+        coloring = [0, 1, 2, 2, 2, 0, 0, 1, None, None]
+        for v, color in enumerate(coloring):
+            if color is not None:
+                x[v * 3 + color] = 1
+
+        # Incomplete coloring should not satisfy all 85 clauses
+        value = problem.evaluate(x)
+        assert value < 85.0
+
+    def test_petersen_seed_independence(self):
+        """PetersenColoringMaxSAT does not take a seed (deterministic graph)."""
+        p1 = PetersenColoringMaxSAT()
+        p2 = PetersenColoringMaxSAT()
+
+        # Same clauses should be generated both times
+        assert len(p1.clauses) == len(p2.clauses) == 85
+        for (v1, n1), (v2, n2) in zip(p1.clauses, p2.clauses, strict=False):
+            assert np.array_equal(v1, v2)
+            assert np.array_equal(n1, n2)
+
+    def test_petersen_reproducible_evaluation(self):
+        """Same bitstring evaluated twice should return same value."""
+        problem = PetersenColoringMaxSAT()
+        x = np.random.randint(0, 2, size=30)
+
+        val1 = problem.evaluate(x)
+        val2 = problem.evaluate(x)
+
+        assert val1 == val2
 
 
 class TestProblemIntegration:

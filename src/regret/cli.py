@@ -123,7 +123,7 @@ def cmd_analyze(args: argparse.Namespace) -> int:
         return 1
 
 
-def main() -> int:
+def app() -> int:
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
         description="Regret experiment pipeline",
@@ -174,4 +174,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(app())
