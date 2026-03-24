@@ -34,7 +34,7 @@ class ExperimentRunner:
         seed: int,
         mode: str = "lite",
         trajectory_stride: int = 1,
-        **alg_kwargs,
+        **alg_kwargs: Any,
     ) -> dict[str, Any]:
         """Run one seeded optimization trial.
 
@@ -91,7 +91,7 @@ class ExperimentRunner:
         name: str | None = None,
         parallel: bool = False,
         trajectory_stride: int = 1,
-        **alg_kwargs,
+        **alg_kwargs: Any,
     ) -> list[dict[str, Any]]:
         """Run multiple independent trials for one algorithm/problem pair.
 

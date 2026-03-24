@@ -2,10 +2,18 @@
 Command-line interface for experiment pipeline.
 
 Usage:
+    ```
     run_experiment validate path/to/config.yaml [path/to/config2.yaml ...]
+    ```
+    ```
     run_experiment plan path/to/config.yaml [path/to/config2.yaml ...]
+    ```
+    ```
     run_experiment run path/to/config.yaml [path/to/config2.yaml ...] [--no-plot]
+    ```
+    ```
     run_experiment analyze path/to/config.yaml [path/to/config2.yaml ...]
+    ```
 """
 
 import sys

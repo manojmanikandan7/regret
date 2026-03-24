@@ -440,7 +440,6 @@ def generate_plots(
         n: Problem size.
         f_star: Known optimum value, or None if unknown.
         results: Mapping of (algorithm, budget) -> list of run result dicts.
-        max_budget: Maximum budget to use for budget-specific plots.
         budget_for_plots: Optional budget for budget-specific plots. If None,
             uses max_budget.
         output_dir: Base directory for saving figures.

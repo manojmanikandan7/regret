@@ -927,14 +927,13 @@ def plot_inverse_runtime_profile_surface(
     show: bool = True,
     title: str | None = None,
     n_contours: int = 6,
-):
+) -> None:
     """Visualize inverse runtime profile P(\\tau_v <= T) as a 2D heatmap with contours.
 
     Args:
         inv_profile: Inverse Runtime profile array of shape (F, T) from compute_inverse_runtime_profile.
         fitness_levels: Fitness level thresholds (rows, shape F).
         time_grid: Evaluation time points (columns, shape T).
-        algorithm_name: Algorithm name (used in logging).
         f_star: Global optimum fitness value (marked as reference line).
         save_path: Path to save figure as PDF. If None, not saved.
         show: Whether to display the figure.
@@ -990,7 +989,7 @@ def plot_inverse_runtime_profile_curves(
     save_path: str | None = None,
     show: bool = True,
     title: str | None = None,
-):
+) -> None:
     """Compare inverse runtime profiles across algorithms at selected fitness levels.
 
     Plots P(\\tau_v <= T) vs T for each algorithm at representative fitness thresholds.
@@ -1042,7 +1041,7 @@ def plot_cr_profile_verification(
     save_path: str | None = None,
     show: bool = True,
     title: str | None = None,
-):
+) -> None:
     """Verify layer-cake identity by comparing E[CR(T)] from two derivations.
 
     Plots expected cumulative regret computed both directly (from per-run CR)

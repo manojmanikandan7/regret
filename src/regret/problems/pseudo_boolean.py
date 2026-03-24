@@ -146,7 +146,7 @@ class Trap(Problem):
         Args:
             n: Dimension of the bitstring.
             k: Width of the deceptive region.
-               (n - k) gives the unitation z, at which the slope change occurs.
+                (n - k) gives the unitation z, at which the slope change occurs.
         """
         self.k = k
         super().__init__(n)
