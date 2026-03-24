@@ -2,176 +2,221 @@
 Command-line interface for experiment pipeline.
 
 Usage:
-    python -m regret.experiments path/to/config.yaml validate
-    python -m regret.experiments path/to/config.yaml plan
-    python -m regret.experiments path/to/config.yaml run [--no-plot]
-    python -m regret.experiments path/to/config.yaml analyze [--results-dir DIR]
+    run_experiment validate path/to/config.yaml [path/to/config2.yaml ...]
+    run_experiment plan path/to/config.yaml [path/to/config2.yaml ...]
+    run_experiment run path/to/config.yaml [path/to/config2.yaml ...] [--no-plot]
+    run_experiment analyze path/to/config.yaml [path/to/config2.yaml ...]
 """
 
-import argparse
 import sys
+import traceback
 from pathlib import Path
+from typing import Annotated
 
-from .experiments.orchestration import (
+import typer
+
+from regret.experiments.orchestration import (
     analyze_results,
     execute_experiments,
     plan_execution,
 )
-from .experiments.validation import ValidationError, validate_config
+from regret.experiments.validation import ValidationError, validate_config
+
+app = typer.Typer(help="Regret experiment pipeline")
 
 
-def cmd_validate(args: argparse.Namespace) -> int:
-    """Validate config file.
+def _print_config_header(config: Path, index: int, total: int) -> None:
+    """Print a per-config banner when multiple configs are provided."""
+    if total > 1:
+        print(f"\n[{index}/{total}] Config: {config}")
 
-    Returns:
-        0 on success, 1 on validation failure.
-    """
+
+def _validate_single(config_path: Path) -> bool:
+    """Validate a single config file."""
     try:
-        config = validate_config(args.config)
-        print(f"Config validation passed: {args.config}")
+        config = validate_config(config_path)
+        print(f"Config validation passed: {config_path}")
         print(f"Suite: {config['suite']['name']}")
         print(f"Mode: {config['suite']['mode']}")
         print(f"Problems: {len(config['problems'])}")
         print(f"Algorithms: {len(config['algorithms'])}")
-        return 0
+        return True
     except ValidationError as e:
         print(f"Validation failed: {e}", file=sys.stderr)
-        return 1
+        return False
 
 
-def cmd_plan(args: argparse.Namespace) -> int:
-    """Display execution plan without running.
-
-    Returns:
-        0 on success, 1 on validation failure.
-    """
+def _plan_single(config_path: Path) -> bool:
+    """Display execution plan for a single config file."""
     try:
-        config = validate_config(args.config)
+        config = validate_config(config_path)
         plan = plan_execution(config)
 
         print("=" * 60)
         print("EXECUTION PLAN")
         print("=" * 60)
+        print(f"Config:        {config_path}")
         print(f"Suite:         {plan['suite_name']}")
         print(f"Mode:          {plan['mode']}")
         print(f"Parallel:      {plan['parallel']}")
+        print(f"Profiling:     {plan['profile']}")
+        print(f"Plotting:      {plan['plotting_enabled']}")
+        print(f"Raw output:    {plan['output_raw_root']}")
+        print(f"Figures out:   {plan['output_figures_root']}")
         print(f"Runs/combo:    {plan['runs_per_combo']}")
         print(f"Budgets:       {plan['budgets']}")
-        print(f"\nProblems ({len(plan['problems'])}):")
-        for p in plan["problems"]:
-            print(f"  - {p}")
-        print(f"\nAlgorithms ({len(plan['algorithms'])}):")
-        for a in plan["algorithms"]:
-            print(f"  - {a}")
+        print(
+            f"Budget span:   min={plan['budget_min']}, max={plan['budget_max']}, count={plan['budget_count']}"
+        )
+
+        print(f"\nProblems ({len(plan['problem_details'])}):")
+        for problem in plan["problem_details"]:
+            n_value = problem["n"] if problem["n"] is not None else "n/a"
+            params = problem["params"] or {}
+            print(
+                "  - "
+                f"{problem['name']} "
+                f"[class={problem['class_name']}, n={n_value}, budget_for_plots={problem['budget_for_plots']}]"
+            )
+            if params:
+                print(f"      params={params}")
+
+        print(f"\nAlgorithms ({len(plan['algorithm_details'])}):")
+        for algorithm in plan["algorithm_details"]:
+            print(
+                "  - "
+                f"{algorithm['name']} "
+                f"[class={algorithm['class_name']}, problem_overrides={algorithm['override_problem_count']}]"
+            )
+            defaults = algorithm["defaults"] or {}
+            if defaults:
+                print(f"      defaults={defaults}")
+            by_problem = algorithm["by_problem"] or {}
+            if by_problem:
+                print(f"      by_problem={list(by_problem.keys())}")
+
         print(f"\nCombinations:  {plan['combination_count']}")
+        print(f"Combos/budget: {plan['combos_per_budget']}")
+        print(f"Runs/budget:   {plan['runs_per_budget']}")
         print(f"Total runs:    {plan['total_runs']}")
+        print(f"Total evals:   {plan['total_evaluations']}")
         print("=" * 60)
-        return 0
+        return True
     except ValidationError as e:
         print(f"Validation failed: {e}", file=sys.stderr)
-        return 1
+        return False
 
 
-def cmd_run(args: argparse.Namespace) -> int:
-    """Execute experiments.
-
-    Returns:
-        0 on success, 1 on failure.
-    """
+def _run_single(config_path: Path, *, no_plot: bool) -> bool:
+    """Execute experiments for a single config file."""
     try:
-        print(f"Loading config: {args.config}")
-        config = validate_config(args.config)
+        print(f"Loading config: {config_path}")
+        config = validate_config(config_path)
         print("Config validated\n")
 
         plan = plan_execution(config)
         print(f"Executing {plan['total_runs']} runs across {plan['combination_count']} configurations...")
         print(f"Mode: {plan['mode']}, Parallel: {plan['parallel']}\n")
 
-        execute_experiments(config, plot=not args.no_plot)
+        execute_experiments(config, plot=not no_plot)
         print("\nExperiments completed")
-        return 0
+        return True
     except ValidationError as e:
         print(f"Validation failed: {e}", file=sys.stderr)
-        return 1
+        return False
     except Exception as e:
         print(f"Execution failed: {e}", file=sys.stderr)
-        import traceback
-
         traceback.print_exc()
-        return 1
+        return False
 
 
-def cmd_analyze(args: argparse.Namespace) -> int:
-    """Regenerate plots from existing results.
-
-    Returns:
-        0 on success, 1 on failure.
-    """
+def _analyze_single(config_path: Path) -> bool:
+    """Regenerate plots for a single config file."""
     try:
-        config = validate_config(args.config)
+        config = validate_config(config_path)
         analyze_results(config)
         print("Analysis completed")
-        return 0
+        return True
     except ValidationError as e:
         print(f"Validation failed: {e}", file=sys.stderr)
-        return 1
+        return False
     except NotImplementedError as e:
         print(f"{e}", file=sys.stderr)
-        return 1
+        return False
     except Exception as e:
         print(f"Analysis failed: {e}", file=sys.stderr)
-        return 1
+        return False
 
 
-def app() -> int:
-    """Main CLI entry point."""
-    parser = argparse.ArgumentParser(
-        description="Regret experiment pipeline",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-    )
-    parser.add_argument(
-        "config",
-        type=Path,
-        help="Path to YAML config file",
-    )
-    subparsers = parser.add_subparsers(dest="command", help="Command to execute")
+def _exit_on_failures(failures: int) -> None:
+    """Return non-zero exit code when any config command fails."""
+    if failures > 0:
+        raise typer.Exit(code=1)
 
-    # Validate subcommand
-    subparsers.add_parser("validate", help="Validate config file without executing")
 
-    # Plan subcommand
-    subparsers.add_parser("plan", help="Display execution plan without running")
+ConfigPaths = Annotated[
+    list[Path],
+    typer.Argument(
+        ..., help="One or more YAML config file paths to process.", exists=True, readable=True, dir_okay=False
+    ),
+]
 
-    # Run subcommand
-    run_parser = subparsers.add_parser("run", help="Execute experiments")
-    run_parser.add_argument(
-        "--no-plot",
-        action="store_true",
-        help="Skip plot generation",
-    )
 
-    # Analyze subcommand
-    subparsers.add_parser(
-        "analyze",
-        help="Regenerate plots from existing results obtained using the provided config",
-    )
+@app.command()
+def validate(configs: ConfigPaths) -> None:
+    """Validate config files without executing experiments."""
+    failures = 0
+    total = len(configs)
+    for index, config_path in enumerate(configs, start=1):
+        _print_config_header(config_path, index, total)
+        if not _validate_single(config_path):
+            failures += 1
+    _exit_on_failures(failures)
 
-    args = parser.parse_args()
 
-    if not args.command:
-        parser.print_help()
-        return 1
+@app.command()
+def plan(configs: ConfigPaths) -> None:
+    """Display execution plans without running experiments."""
+    failures = 0
+    total = len(configs)
+    for index, config_path in enumerate(configs, start=1):
+        _print_config_header(config_path, index, total)
+        if not _plan_single(config_path):
+            failures += 1
+    _exit_on_failures(failures)
 
-    # Dispatch to command handlers
-    commands = {
-        "validate": cmd_validate,
-        "plan": cmd_plan,
-        "run": cmd_run,
-        "analyze": cmd_analyze,
-    }
 
-    return commands[args.command](args)
+@app.command()
+def run(
+    configs: ConfigPaths,
+    no_plot: Annotated[bool, typer.Option("--no-plot", help="Skip plot generation")] = False,
+) -> None:
+    """Execute experiments for one or more config files."""
+    failures = 0
+    total = len(configs)
+    for index, config_path in enumerate(configs, start=1):
+        _print_config_header(config_path, index, total)
+        if not _run_single(config_path, no_plot=no_plot):
+            failures += 1
+    _exit_on_failures(failures)
+
+
+@app.command()
+def analyze(configs: ConfigPaths) -> None:
+    """Regenerate plots from existing results for one or more config files."""
+    failures = 0
+    total = len(configs)
+    for index, config_path in enumerate(configs, start=1):
+        _print_config_header(config_path, index, total)
+        if not _analyze_single(config_path):
+            failures += 1
+    _exit_on_failures(failures)
+
+
+def main() -> None:
+    """CLI entry point for script and module execution."""
+    app()
 
 
 if __name__ == "__main__":
-    sys.exit(app())
+    main()

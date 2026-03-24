@@ -61,39 +61,44 @@ Core dependencies: `numpy`, `scipy`, `matplotlib`, `pandas`, `pyyaml`, `jsonsche
 All experiments are driven through a single CLI entry point:
 
 ```bash
-run_experiment <config.yaml> <command>
+run_experiment <command> <config.yaml> [<config2.yaml> ...]
 ```
 
 Or equivalently:
 
 ```bash
-python -m regret.experiments <config.yaml> <command>
+python -m regret <command> <config.yaml> [<config2.yaml> ...]
 ```
 
 ### Commands
 
 | Command | Description |
 | --- | --- |
-| `validate` | Parse and validate a YAML config without running anything |
-| `plan` | Print a dry-run summary: problem/algorithm combinations, total runs, budgets |
-| `run` | Execute all experiments and generate plots |
-| `run --no-plot` | Execute experiments but skip plot generation |
-| `analyze` | Regenerate all plots from previously saved JSON results |
+| `validate <config...>` | Parse and validate one or more YAML configs without running anything |
+| `plan <config...>` | Print dry-run summaries: problem/algorithm combinations, total runs, budgets |
+| `run <config...> [--no-plot]` | Execute one or more experiment configs and optionally skip plot generation |
+| `analyze <config...>` | Regenerate plots from previously saved JSON results for one or more configs |
 
 ### Example
 
 ```bash
-# Validate config
-run_experiment configs/experiments/01_baseline.yaml validate
+# Validate one config
+run_experiment validate configs/experiments/01_baseline.yaml
+
+# Validate multiple configs in sequence
+run_experiment validate configs/experiments/01_baseline.yaml configs/experiments/02_extended.yaml
 
 # Preview execution plan
-run_experiment configs/experiments/01_baseline.yaml plan
+run_experiment plan configs/experiments/01_baseline.yaml
 
-# Run full experiment suite
-run_experiment configs/experiments/01_baseline.yaml run
+# Run full experiment suites for multiple configs
+run_experiment run configs/experiments/01_baseline.yaml configs/experiments/02_extended.yaml
+
+# Run while skipping plot generation
+run_experiment run configs/experiments/01_baseline.yaml --no-plot
 
 # Regenerate plots only (no re-running)
-run_experiment configs/experiments/01_baseline.yaml analyze
+run_experiment analyze configs/experiments/01_baseline.yaml
 ```
 
 ---
@@ -138,7 +143,7 @@ regret/
         ├── orchestration.py          # Execution planning and dispatch
         ├── runner.py                 # ExperimentRunner (serial/parallel), result persistence
         ├── utils.py                  # Config parsing, slug generation, plot dispatch
-        └── cli.py                    # argparse CLI entry point
+        └── cli.py                    # Typer CLI entry point (single or multi-config)
 ```
 
 ---

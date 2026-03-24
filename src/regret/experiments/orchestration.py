@@ -36,6 +36,9 @@ def plan_execution(config: dict[str, Any]) -> dict[str, Any]:
         - algorithms: List of algorithm names
         - combination_count: Total combinations
         - total_runs: Total number of runs
+        - total_evaluations: Total evaluations across all runs and budgets
+        - problem_details: Problem-level detail records
+        - algorithm_details: Algorithm-level detail records
     """
     suite_cfg = config["suite"]
     problem_specs = parse_problems(config)
@@ -45,17 +48,56 @@ def plan_execution(config: dict[str, Any]) -> dict[str, Any]:
 
     combo_count = len(problem_specs) * len(algorithm_specs) * len(budgets)
     total_runs = combo_count * runs
+    total_evaluations = len(problem_specs) * len(algorithm_specs) * runs * sum(budgets)
+
+    problem_details: list[dict[str, Any]] = []
+    for spec in problem_specs:
+        problem_details.append(
+            {
+                "name": spec.name,
+                "class_name": spec.class_name,
+                "n": spec.params.get("n"),
+                "budget_for_plots": spec.budget_for_plots,
+                "params": spec.params,
+            }
+        )
+
+    algorithm_details: list[dict[str, Any]] = []
+    for spec in algorithm_specs:
+        defaults = spec.args.get("defaults", {})
+        by_problem = spec.args.get("by_problem", {})
+        algorithm_details.append(
+            {
+                "name": spec.name,
+                "class_name": spec.class_name,
+                "defaults": defaults,
+                "by_problem": by_problem,
+                "override_problem_count": len(by_problem),
+            }
+        )
 
     return {
         "suite_name": suite_cfg["name"],
         "runs_per_combo": runs,
         "budgets": budgets,
+        "budget_count": len(budgets),
+        "budget_min": min(budgets),
+        "budget_max": max(budgets),
         "problems": [p.name for p in problem_specs],
         "algorithms": [a.name for a in algorithm_specs],
+        "problem_details": problem_details,
+        "algorithm_details": algorithm_details,
         "combination_count": combo_count,
         "total_runs": total_runs,
+        "total_evaluations": total_evaluations,
+        "runs_per_budget": len(problem_specs) * len(algorithm_specs) * runs,
+        "combos_per_budget": len(problem_specs) * len(algorithm_specs),
         "mode": suite_cfg["mode"],
         "parallel": suite_cfg.get("parallel", True),
+        "profile": bool(suite_cfg.get("profile", False)),
+        "output_raw_root": str(suite_cfg["output"]["raw_root"]),
+        "output_figures_root": str(suite_cfg["output"]["figures_root"]),
+        "plotting_enabled": bool(config["plotting"]["enabled"]),
     }
 
 
