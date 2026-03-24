@@ -69,7 +69,7 @@ class Algorithm(ABC):
         """Perform one iteration of the algorithm (in-place state update)."""
         pass
 
-    def run(self, budget: int):
+    def run(self, budget: int) -> tuple[float, np.ndarray | None]:
         """Execute the algorithm for a fixed evaluation budget.
 
         Args:

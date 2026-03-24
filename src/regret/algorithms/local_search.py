@@ -80,9 +80,7 @@ class RLSExploration(Algorithm):
 
     def step(self):
         """Perform one iteration combining exploration and local search."""
-        epsilon = (
-            self.base_epsilon / self.evaluations if self.decay else self.base_epsilon
-        )
+        epsilon = self.base_epsilon / self.evaluations if self.decay else self.base_epsilon
 
         neighbour = self.current.copy()
         i = self.rng.integers(0, self.problem.n)

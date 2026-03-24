@@ -2,7 +2,7 @@ import json
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Type
+from typing import Any
 
 import numpy as np
 from tqdm import tqdm
@@ -28,7 +28,7 @@ class ExperimentRunner:
 
     def run_single(
         self,
-        algorithm_class: Type[Algorithm],
+        algorithm_class: type[Algorithm],
         problem: Problem,
         budget: int,
         seed: int,
@@ -83,7 +83,7 @@ class ExperimentRunner:
 
     def run_experiment(
         self,
-        algorithm_class: Type[Algorithm],
+        algorithm_class: type[Algorithm],
         problem: Problem,
         budget: int,
         runs: int = 30,
@@ -129,9 +129,7 @@ class ExperimentRunner:
             )
         else:
             results = []
-            for seed in tqdm(
-                range(runs), desc=f"{algorithm_class.__name__}", leave=False
-            ):
+            for seed in tqdm(range(runs), desc=f"{algorithm_class.__name__}", leave=False):
                 result = self.run_single(
                     algorithm_class,
                     problem,
@@ -145,15 +143,13 @@ class ExperimentRunner:
 
         # Save results
         if name:
-            self._save_results(
-                name, algorithm_class, problem, budget, runs, mode, results
-            )
+            self._save_results(name, algorithm_class, problem, budget, runs, mode, results)
 
         return results
 
     def _run_parallel(
         self,
-        algorithm_class: Type[Algorithm],
+        algorithm_class: type[Algorithm],
         problem: Problem,
         budget: int,
         runs: int,
@@ -207,7 +203,7 @@ class ExperimentRunner:
     def _save_results(
         self,
         name: str,
-        algorithm_class: Type[Algorithm],
+        algorithm_class: type[Algorithm],
         problem: Problem,
         budget: int,
         runs: int,
@@ -261,7 +257,7 @@ class ExperimentRunner:
             Parsed experiment result payload.
         """
         filepath = self.output_dir / f"{name}.json"
-        with open(filepath, "r", encoding="utf-8") as f:
+        with open(filepath, encoding="utf-8") as f:
             return json.load(f)
 
 
@@ -279,7 +275,7 @@ class BatchRunner:
 
     def run_suite(
         self,
-        algorithms: dict[str, Type[Algorithm]],
+        algorithms: dict[str, type[Algorithm]],
         problem: Problem,
         budgets: list[int],
         runs: int = 30,

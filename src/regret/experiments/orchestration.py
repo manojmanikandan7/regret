@@ -7,18 +7,18 @@ Assumes config is valid and handles only execution logic.
 from pathlib import Path
 from typing import Any
 
+from regret.experiments.runner import ExperimentRunner
+
 from .utils import (
     export_runtime_profile_data,
+    generate_plots,
     get_algorithm_class,
     instantiate_problem,
     parse_algorithms,
     parse_problems,
     resolve_alg_kwargs,
     safe_slug,
-    generate_plots,
 )
-
-from regret.experiments.runner import ExperimentRunner
 
 
 def plan_execution(config: dict[str, Any]) -> dict[str, Any]:
@@ -97,8 +97,7 @@ def execute_experiments(config: dict[str, Any], plot: bool = True) -> None:
                     ]
                 )
                 print(
-                    f"[run] problem={problem_spec.name} alg={alg_spec.name} "
-                    f"n={problem.n} budget={budget} runs={runs}"
+                    f"[run] problem={problem_spec.name} alg={alg_spec.name} n={problem.n} budget={budget} runs={runs}"
                 )
 
                 results = runner.run_experiment(
@@ -139,9 +138,7 @@ def execute_experiments(config: dict[str, Any], plot: bool = True) -> None:
                 plotting_config=config["plotting"],
                 raw_output_dir=suite_cfg["output"]["raw_root"],
                 figures_output_dir=(
-                    suite_cfg["output"]["figures_root"]
-                    if plot and config["plotting"]["enabled"]
-                    else None
+                    suite_cfg["output"]["figures_root"] if plot and config["plotting"]["enabled"] else None
                 ),
             )
 
@@ -192,7 +189,7 @@ def analyze_results(config: dict[str, Any]):
 
     # Load and parse all results
     for json_file in json_files:
-        with open(json_file, "r") as f:
+        with open(json_file) as f:
             data = json.load(f)
 
         metadata = data["metadata"]

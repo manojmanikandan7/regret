@@ -26,7 +26,7 @@ class NKLandscape(Problem):
             n: Number of loci in the bitstring.
         """
         self.contributions = []
-        for i in range(n):
+        for _i in range(n):
             table_size = 2 ** (self.k + 1)
             self.contributions.append(self.rng.random(table_size))
 

@@ -12,8 +12,12 @@ import argparse
 import sys
 from pathlib import Path
 
-from .validation import ValidationError, validate_config
-from .orchestration import plan_execution, execute_experiments, analyze_results
+from .experiments.orchestration import (
+    analyze_results,
+    execute_experiments,
+    plan_execution,
+)
+from .experiments.validation import ValidationError, validate_config
 
 
 def cmd_validate(args: argparse.Namespace) -> int:
@@ -80,9 +84,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         print("Config validated\n")
 
         plan = plan_execution(config)
-        print(
-            f"Executing {plan['total_runs']} runs across {plan['combination_count']} configurations..."
-        )
+        print(f"Executing {plan['total_runs']} runs across {plan['combination_count']} configurations...")
         print(f"Mode: {plan['mode']}, Parallel: {plan['parallel']}\n")
 
         execute_experiments(config, plot=not args.no_plot)

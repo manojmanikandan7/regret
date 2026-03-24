@@ -6,9 +6,7 @@ from regret.core.base import Problem
 class MaxkSAT(Problem):
     """Random k-SAT problem (maximization version)."""
 
-    def __init__(
-        self, n: int, m: int | None = None, k: int = 3, seed: int | None = None
-    ):
+    def __init__(self, n: int, m: int | None = None, k: int = 3, seed: int | None = None):
         """Initialize random k-SAT instance and generate clauses.
 
         Args:
@@ -18,9 +16,7 @@ class MaxkSAT(Problem):
             seed: Optional RNG seed for reproducibility.
         """
         self.k = k
-        self.m = (
-            m or 4 * n
-        )  # Number of clauses; default is 4 times the number of variables
+        self.m = m or 4 * n  # Number of clauses; default is 4 times the number of variables
         self.rng = np.random.default_rng(seed)
         self._generate_clauses(n)
         super().__init__(n)
@@ -45,7 +41,7 @@ class MaxkSAT(Problem):
         satisfied = 0
         for variables, negations in self.clauses:
             clause_sat = False
-            for var, neg in zip(variables, negations):
+            for var, neg in zip(variables, negations, strict=False):
                 # If the variable in x is true and if the corresponding variable is not negated, the clause is satisfied
                 if (x[var] == 1) != (neg == 1):
                     clause_sat = True
@@ -59,7 +55,8 @@ class MaxkSAT(Problem):
         Return theoretical upper bound of satisfied clauses.
 
         IMPORTANT NOTE: the theoretical upper bound is very rarely achievable in practice.
-        This means instantaneous regret will almost never reach zero, and cumulative regret will appear artificially high.
+        This means instantaneous regret will almost never reach zero, and
+        cumulative regret will appear artificially high.
         The choice for the optimum chosen is intentional, but not appropriate for practical analyis.
         """
         # For random MaxSAT, optimum is typically all clauses satisfied

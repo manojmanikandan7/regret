@@ -10,10 +10,8 @@ from typing import Any
 import jsonschema
 import yaml
 
-
 from .schema import CONFIG_SCHEMA
-
-from .utils import ALGORITHM_REGISTRY, PROBLEM_REGISTRY, COOLING_REGISTRY
+from .utils import ALGORITHM_REGISTRY, COOLING_REGISTRY, PROBLEM_REGISTRY
 
 
 class ValidationError(Exception):
@@ -88,14 +86,10 @@ def validate_semantic(config: dict[str, Any]) -> None:
     for idx, problem in enumerate(config.get("problems", [])):
         problem_name_raw = problem.get("name")
         if not isinstance(problem_name_raw, str) or not problem_name_raw.strip():
-            raise ValidationError(
-                f"problems[{idx}].name: missing required non-empty problem name"
-            )
+            raise ValidationError(f"problems[{idx}].name: missing required non-empty problem name")
         problem_name = problem_name_raw.strip()
         if problem_name in problem_names:
-            raise ValidationError(
-                f"problems[{idx}].name: Duplicate problem name '{problem_name}'"
-            )
+            raise ValidationError(f"problems[{idx}].name: Duplicate problem name '{problem_name}'")
         problem_names.add(problem_name)
 
         class_name = problem["class"]
@@ -109,8 +103,7 @@ def validate_semantic(config: dict[str, Any]) -> None:
         selected_budget = problem.get("budget_for_plots")
         if selected_budget is not None and int(selected_budget) not in suite_budgets:
             raise ValidationError(
-                f"problems[{idx}].budget_for_plots: must be one of suite.budgets "
-                f"{sorted(suite_budgets)}"
+                f"problems[{idx}].budget_for_plots: must be one of suite.budgets {sorted(suite_budgets)}"
             )
 
     algorithm_names: set[str] = set()
@@ -119,14 +112,10 @@ def validate_semantic(config: dict[str, Any]) -> None:
     for idx, algorithm in enumerate(config.get("algorithms", [])):
         algorithm_name_raw = algorithm.get("name")
         if not isinstance(algorithm_name_raw, str) or not algorithm_name_raw.strip():
-            raise ValidationError(
-                f"algorithms[{idx}].name: missing required non-empty algorithm name"
-            )
+            raise ValidationError(f"algorithms[{idx}].name: missing required non-empty algorithm name")
         algorithm_name = algorithm_name_raw.strip()
         if algorithm_name in algorithm_names:
-            raise ValidationError(
-                f"algorithms[{idx}].name: Duplicate algorithm name '{algorithm_name}'"
-            )
+            raise ValidationError(f"algorithms[{idx}].name: Duplicate algorithm name '{algorithm_name}'")
         algorithm_names.add(algorithm_name)
 
         class_name = algorithm["class"]
@@ -152,12 +141,8 @@ def validate_semantic(config: dict[str, Any]) -> None:
                     f"algorithms[{idx}].args.by_problem[{prob_name}]: unknown problem name; "
                     f"must match one of {sorted(problem_names)}"
                 )
-            _validate_cooling_schedule(
-                overrides, f"algorithms[{idx}].args.by_problem[{prob_name}]"
-            )
-            _validate_cooling_keys_exclusive(
-                overrides, f"algorithms[{idx}].args.by_problem[{prob_name}]"
-            )
+            _validate_cooling_schedule(overrides, f"algorithms[{idx}].args.by_problem[{prob_name}]")
+            _validate_cooling_keys_exclusive(overrides, f"algorithms[{idx}].args.by_problem[{prob_name}]")
 
     # Plotting config is required semantically, even when plotting is disabled.
     plotting_cfg = config.get("plotting")
@@ -169,10 +154,7 @@ def validate_semantic(config: dict[str, Any]) -> None:
     # Validate optional plotting budget selector
     selected_budget = plotting_cfg.get("budget_for_plots")
     if selected_budget is not None and int(selected_budget) not in suite_budgets:
-        raise ValidationError(
-            "plotting.budget_for_plots: must be one of suite.budgets "
-            f"{sorted(suite_budgets)}"
-        )
+        raise ValidationError(f"plotting.budget_for_plots: must be one of suite.budgets {sorted(suite_budgets)}")
 
 
 def _validate_cooling_schedule(args_dict: dict[str, Any], path: str) -> None:
@@ -201,17 +183,14 @@ def _validate_cooling_schedule(args_dict: dict[str, Any], path: str) -> None:
             sched_type = spec.strip().lower()
             if sched_type not in COOLING_REGISTRY:
                 raise ValidationError(
-                    f"{path}.{key}: Unknown cooling schedule '{spec}'. "
-                    f"Available: {sorted(COOLING_REGISTRY.keys())}"
+                    f"{path}.{key}: Unknown cooling schedule '{spec}'. Available: {sorted(COOLING_REGISTRY.keys())}"
                 )
 
 
 def _validate_cooling_keys_exclusive(args_dict: dict[str, Any], path: str) -> None:
     """Reject redundant simultaneous cooling keys."""
     if "cooling" in args_dict and "T_func" in args_dict:
-        raise ValidationError(
-            f"{path}: use only one of 'cooling' or 'T_func', not both"
-        )
+        raise ValidationError(f"{path}: use only one of 'cooling' or 'T_func', not both")
 
 
 def validate_config(config_path: Path) -> dict[str, Any]:

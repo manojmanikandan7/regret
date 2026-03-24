@@ -4,32 +4,29 @@ This module re-exports shared experiment utilities for a stable import surface
 while internals are split across cli/validation/orchestration/utils modules.
 """
 
-from typing import Callable
-from regret.core.base import Problem, Algorithm
-
-from regret.problems.pseudo_boolean import (
-    OneMax,
-    LeadingOnes,
-    TwoMax,
-    Jump,
-    Trap,
-    BinVal,
-    Plateau,
-    HIFF,
-)
-from regret.problems.combinatorial import MaxkSAT
-from regret.problems.landscapes import NKLandscape
-
+from collections.abc import Callable
 
 from regret.algorithms.annealing import (
-    SimulatedAnnealing,
-    LogarithmicCooling,
-    LinearCooling,
     ExponentialCooling,
+    LinearCooling,
+    LogarithmicCooling,
+    SimulatedAnnealing,
 )
-
+from regret.algorithms.evolutionary import MuPlusLambdaEA, OnePlusOneEA
 from regret.algorithms.local_search import RLS, RLSExploration
-from regret.algorithms.evolutionary import OnePlusOneEA, MuPlusLambdaEA
+from regret.core.base import Algorithm, Problem
+from regret.problems.combinatorial import MaxkSAT, PetersenColoringMaxSAT
+from regret.problems.landscapes import NKLandscape
+from regret.problems.pseudo_boolean import (
+    HIFF,
+    BinVal,
+    Jump,
+    LeadingOnes,
+    OneMax,
+    Plateau,
+    Trap,
+    TwoMax,
+)
 
 # Registries
 PROBLEM_REGISTRY: dict[str, type[Problem]] = {
@@ -43,6 +40,7 @@ PROBLEM_REGISTRY: dict[str, type[Problem]] = {
     "HIFF": HIFF,
     "NKLandscape": NKLandscape,
     "MaxkSAT": MaxkSAT,
+    "PetersenColoringMaxSAT": PetersenColoringMaxSAT,
 }
 
 ALGORITHM_REGISTRY: dict[str, type[Algorithm]] = {

@@ -83,9 +83,7 @@ class MuPlusLambdaEA(Algorithm):
         """Initialize population, fitness, and tracking for a fresh run."""
         super().reset()
         # Initialize population
-        self.population = [
-            self.rng.integers(0, 2, size=self.problem.n) for _ in range(self.mu)
-        ]
+        self.population = [self.rng.integers(0, 2, size=self.problem.n) for _ in range(self.mu)]
         self.fitness = [self.problem.evaluate(ind) for ind in self.population]
         self.evaluations = self.mu
 
@@ -120,9 +118,7 @@ class MuPlusLambdaEA(Algorithm):
             if fitness > self.best_value:
                 self.best_value = fitness
                 self.best_solution = child.copy()
-            self._record_history(
-                fitness
-            )  # records actual evaluation, not population best
+            self._record_history(fitness)  # records actual evaluation, not population best
 
         # Combine and select
         combined = self.population + offspring

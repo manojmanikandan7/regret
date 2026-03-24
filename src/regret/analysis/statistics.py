@@ -2,9 +2,7 @@ import numpy as np
 from scipy import stats
 
 
-def mann_whitney_test(
-    regrets1: np.ndarray, regrets2: np.ndarray
-) -> tuple[float, float]:
+def mann_whitney_test(regrets1: np.ndarray, regrets2: np.ndarray) -> tuple[float, float]:
     """Perform Mann-Whitney U test."""
     statistic, pvalue = stats.mannwhitneyu(regrets1, regrets2, alternative="two-sided")
     return statistic, pvalue
