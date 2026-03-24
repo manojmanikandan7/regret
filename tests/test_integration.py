@@ -1,9 +1,10 @@
 """Tests for integration between components."""
 
 import numpy as np
+
 from regret.algorithms.local_search import RLS
+from regret.core.metrics import instantaneous_regret, simple_regret
 from regret.problems.pseudo_boolean import OneMax
-from regret.core.metrics import simple_regret, instantaneous_regret
 
 
 class TestAlgorithmProblemIntegration:
@@ -22,9 +23,7 @@ class TestAlgorithmProblemIntegration:
 
         # Best value is monotonic and bounded by the known optimum.
         history_best = [best for _, _, best in rls.history]
-        assert all(
-            history_best[i] <= history_best[i + 1] for i in range(len(history_best) - 1)
-        )
+        assert all(history_best[i] <= history_best[i + 1] for i in range(len(history_best) - 1))
         assert rls.best_value >= initial_best
         assert rls.best_value <= problem.get_optimum_value()
 

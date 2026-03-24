@@ -6,8 +6,8 @@ import pytest
 from regret.problems.combinatorial import MaxkSAT
 from regret.problems.landscapes import NKLandscape
 from regret.problems.pseudo_boolean import (
-    BinVal,
     HIFF,
+    BinVal,
     Jump,
     LeadingOnes,
     OneMax,
@@ -282,8 +282,7 @@ class TestNKLandscape:
         """For n <= 20, get_optimum_value uses exhaustive search."""
         problem = NKLandscape(n=4, k=2, seed=5)
         brute_force_best = max(
-            problem.evaluate(np.array([int(b) for b in format(i, "04b")], dtype=int))
-            for i in range(2**4)
+            problem.evaluate(np.array([int(b) for b in format(i, "04b")], dtype=int)) for i in range(2**4)
         )
         assert problem.get_optimum_value() == brute_force_best
 
@@ -302,7 +301,7 @@ class TestMaxkSAT:
         p2 = MaxkSAT(n=10, m=20, k=3, seed=42)
 
         assert len(p1.clauses) == len(p2.clauses) == 20
-        for (v1, n1), (v2, n2) in zip(p1.clauses, p2.clauses):
+        for (v1, n1), (v2, n2) in zip(p1.clauses, p2.clauses, strict=False):
             assert np.array_equal(v1, v2)
             assert np.array_equal(n1, n2)
 

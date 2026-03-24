@@ -16,9 +16,7 @@ def _write_result(
     n: int,
     budget: int,
 ) -> None:
-    out_path = (
-        root / suite_slug / problem_slug / algorithm_slug / f"n{n}" / f"b{budget}.json"
-    )
+    out_path = root / suite_slug / problem_slug / algorithm_slug / f"n{n}" / f"b{budget}.json"
     out_path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "metadata": {
@@ -57,9 +55,7 @@ def _write_result(
     out_path.write_text(json.dumps(payload, separators=(",", ":")), encoding="utf-8")
 
 
-def test_analyze_preserves_problem_slug_and_algorithm_uniqueness(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_analyze_preserves_problem_slug_and_algorithm_uniqueness(tmp_path: Path, monkeypatch) -> None:
     raw_root = tmp_path / "raw"
 
     # Intentionally use slugs that do not match current config-derived slugs.
@@ -72,9 +68,7 @@ def test_analyze_preserves_problem_slug_and_algorithm_uniqueness(
     def _capture_generate_plots(**kwargs):
         captured.append(kwargs)
 
-    monkeypatch.setattr(
-        "regret.experiments.orchestration.generate_plots", _capture_generate_plots
-    )
+    monkeypatch.setattr("regret.experiments.orchestration.generate_plots", _capture_generate_plots)
 
     config = {
         "suite": {

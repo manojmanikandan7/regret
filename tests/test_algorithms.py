@@ -1,14 +1,15 @@
 """Tests for regret.algorithms module."""
 
-import pytest
 import numpy as np
-from regret.algorithms.local_search import RLS, RLSExploration
-from regret.algorithms.evolutionary import OnePlusOneEA, MuPlusLambdaEA
+import pytest
+
 from regret.algorithms.annealing import (
-    SimulatedAnnealing,
-    LogarithmicCooling,
     ExponentialCooling,
+    LogarithmicCooling,
+    SimulatedAnnealing,
 )
+from regret.algorithms.evolutionary import MuPlusLambdaEA, OnePlusOneEA
+from regret.algorithms.local_search import RLS, RLSExploration
 from regret.problems.pseudo_boolean import OneMax
 
 
@@ -115,9 +116,7 @@ class TestOnePlusOneEA:
     def test_one_plus_one_ea_mutation_rate_bounds(self, simple_problem):
         """Test (1+1)-EA with different mutation rates."""
         for mutation_rate in [0.01, 0.1, 0.5, 1.0]:
-            ea = OnePlusOneEA(
-                problem=simple_problem, mutation_rate=mutation_rate, seed=7
-            )
+            ea = OnePlusOneEA(problem=simple_problem, mutation_rate=mutation_rate, seed=7)
             ea.reset()
             before = ea.best_value
             ea.step()
@@ -134,9 +133,7 @@ class TestMuPlusLambdaEA:
 
     def test_mu_plus_lambda_ea_reset(self, simple_problem):
         """Test (μ+λ)-EA reset functionality."""
-        ea = MuPlusLambdaEA(
-            problem=simple_problem, mu=5, lmbda=10, mutation_rate=0.1, seed=8
-        )
+        ea = MuPlusLambdaEA(problem=simple_problem, mu=5, lmbda=10, mutation_rate=0.1, seed=8)
         ea.reset()
         assert ea.best_solution is not None
         assert ea.evaluations == 5
@@ -144,9 +141,7 @@ class TestMuPlusLambdaEA:
 
     def test_mu_plus_lambda_ea_step(self, simple_problem):
         """Test (μ+λ)-EA performs a single step."""
-        ea = MuPlusLambdaEA(
-            problem=simple_problem, mu=5, lmbda=10, mutation_rate=0.1, seed=9
-        )
+        ea = MuPlusLambdaEA(problem=simple_problem, mu=5, lmbda=10, mutation_rate=0.1, seed=9)
         ea.reset()
         evals_before = ea.evaluations
         history_before = len(ea.history)
@@ -229,9 +224,7 @@ class TestAlgorithmIntegration:
             (SimulatedAnnealing, {"T_func": LogarithmicCooling(d=2.0)}, 7),
         ],
     )
-    def test_history_evaluations_alignment(
-        self, simple_problem, AlgorithmClass, kwargs, steps
-    ):
+    def test_history_evaluations_alignment(self, simple_problem, AlgorithmClass, kwargs, steps):
         """History timestamps should stay aligned with evaluation counts."""
         algo = AlgorithmClass(problem=simple_problem, seed=123, **kwargs)
         algo.reset()
@@ -285,10 +278,7 @@ class TestAlgorithmIntegration:
 
             final_best = algo.best_value
             history_best = [best for _, _, best in algo.history]
-            assert all(
-                history_best[i] <= history_best[i + 1]
-                for i in range(len(history_best) - 1)
-            )
+            assert all(history_best[i] <= history_best[i + 1] for i in range(len(history_best) - 1))
             assert final_best >= initial_best
             assert final_best == history_best[-1]
             assert final_best <= onemax.get_optimum_value()
@@ -298,7 +288,7 @@ class TestAlgorithmIntegration:
         for budget in [1, 5, 10, 50, 100]:
             rls = RLS(problem=simple_problem, seed=42)
             best_value, best_solution = rls.run(budget)
-            
+
             # Budget constraint: evaluations recorded includes the reset evaluation
             assert rls.evaluations == budget
             assert len(rls.history) == budget
@@ -307,11 +297,11 @@ class TestAlgorithmIntegration:
         """Algorithm.run() should return best_value and best_solution found."""
         rls = RLS(problem=simple_problem, seed=7)
         best_value, best_solution = rls.run(budget=50)
-        
+
         # Return values should be the tracked best
         assert best_value == rls.best_value
         assert best_solution is rls.best_solution
-        
+
         # best_solution should evaluate to best_value
         if best_solution is not None:
             eval_value = simple_problem.evaluate(best_solution)
@@ -320,15 +310,16 @@ class TestAlgorithmIntegration:
     def test_algorithm_run_resets_history(self, simple_problem):
         """Algorithm.run() should reset history and start fresh."""
         rls = RLS(problem=simple_problem, seed=99)
-        
+
         # First run
         rls.run(budget=20)
         first_evaluations = rls.evaluations
-        
+
         # Second run should reset
         rls.run(budget=30)
         second_evaluations = rls.evaluations
-        
+
+        assert first_evaluations == 20
         # Should not accumulate - second run resets
         assert second_evaluations == 30
         assert rls.evaluations == second_evaluations
@@ -337,16 +328,18 @@ class TestAlgorithmIntegration:
         """Same seed should produce identical results across multiple runs."""
         seed = 123
         budget = 40
-        
+
         rls1 = RLS(problem=simple_problem, seed=seed)
         best_val1, best_sol1 = rls1.run(budget=budget)
         history1 = list(rls1.history)
-        
+
         rls2 = RLS(problem=simple_problem, seed=seed)
         best_val2, best_sol2 = rls2.run(budget=budget)
         history2 = list(rls2.history)
-        
+
         assert best_val1 == best_val2
+        assert best_sol1 is not None
+        assert best_sol2 is not None
         assert np.array_equal(best_sol1, best_sol2)
         assert history1 == history2
 
@@ -358,14 +351,12 @@ class TestAlgorithmIntegration:
             (SimulatedAnnealing, {"T_func": LogarithmicCooling(d=2.0)}),
         ],
     )
-    def test_algorithm_run_budget_constraint(
-        self, simple_problem, AlgorithmClass, kwargs
-    ):
+    def test_algorithm_run_budget_constraint(self, simple_problem, AlgorithmClass, kwargs):
         """All algorithms should respect budget constraint."""
         budget = 25
         alg = AlgorithmClass(problem=simple_problem, seed=42, **kwargs)
         best_value, best_solution = alg.run(budget)
-        
+
         assert alg.evaluations == budget
         assert len(alg.history) == budget
         assert best_value <= simple_problem.get_optimum_value()
@@ -374,12 +365,12 @@ class TestAlgorithmIntegration:
         """best_solution should always achieve best_value on evaluation."""
         rls = RLS(problem=simple_problem, seed=55)
         best_value, best_solution = rls.run(budget=60)
-        
+
         if best_solution is not None:
             # Evaluate the solution and verify it matches
             solution_eval = simple_problem.evaluate(best_solution)
             assert solution_eval == best_value
-            
+
             # Also verify this value is in history
             history_best_values = [best for _, _, best in rls.history]
             assert best_value in history_best_values

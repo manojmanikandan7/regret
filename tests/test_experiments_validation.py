@@ -168,9 +168,7 @@ def test_validate_semantic_rejects_unknown_cooling_string() -> None:
 def test_validate_semantic_rejects_unknown_cooling_type_in_mapping() -> None:
     """Dict cooling schedules must have a valid type."""
     config = _valid_config()
-    config["algorithms"][0]["args"]["defaults"] = {
-        "T_func": {"type": "unknown", "params": {"T0": 1.0}}
-    }
+    config["algorithms"][0]["args"]["defaults"] = {"T_func": {"type": "unknown", "params": {"T0": 1.0}}}
 
     with pytest.raises(ValidationError, match="Unknown cooling schedule"):
         validate_semantic(config)
@@ -216,9 +214,7 @@ def test_validate_semantic_rejects_duplicate_algorithm_names() -> None:
 def test_validate_semantic_rejects_unknown_by_problem_target() -> None:
     """by_problem overrides must target configured problem names."""
     config = _valid_config()
-    config["algorithms"][0]["args"]["by_problem"] = {
-        "MissingProblem": {"cooling": "linear"}
-    }
+    config["algorithms"][0]["args"]["by_problem"] = {"MissingProblem": {"cooling": "linear"}}
 
     with pytest.raises(ValidationError, match="unknown problem name"):
         validate_semantic(config)

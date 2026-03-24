@@ -1,19 +1,20 @@
 """Tests for regret.core.metrics module."""
 
-import pytest
 import numpy as np
+import pytest
+
 from regret.core.metrics import (
-    simple_regret,
-    instantaneous_regret,
-    cumulative_regret,
-    ttfo,
+    compute_inv_runtime_profile,
     compute_statistics,
-    probability_optimal,
-    history_current_series,
+    cumulative_regret,
     history_best_series,
-    runtime_profile_single_run,
-    compute_runtime_profile,
-    profile_to_expected_cumulative_regret,
+    history_current_series,
+    instantaneous_regret,
+    inv_profile_to_expected_cumulative_regret,
+    inv_runtime_profile_single_run,
+    probability_optimal,
+    simple_regret,
+    ttfo,
 )
 
 
@@ -220,10 +221,7 @@ class TestMetricsIntegration:
         # Instantaneous regrets should be decreasing
         inst_regrets = instantaneous_regret(trajectory, f_star, use_best=True)
         regret_values = [r[1] for r in inst_regrets]
-        assert all(
-            regret_values[i] >= regret_values[i + 1]
-            for i in range(len(regret_values) - 1)
-        )
+        assert all(regret_values[i] >= regret_values[i + 1] for i in range(len(regret_values) - 1))
 
     def test_metrics_with_realistic_optimization_run(self):
         """Test metrics on a realistic optimization trajectory."""
@@ -252,9 +250,7 @@ class TestMetricsIntegration:
 
         # Cumulative regrets should be non-decreasing
         cum_values = [r[1] for r in cum_regrets]
-        assert all(
-            cum_values[i] <= cum_values[i + 1] for i in range(len(cum_values) - 1)
-        )
+        assert all(cum_values[i] <= cum_values[i + 1] for i in range(len(cum_values) - 1))
 
         # Should find optimum
         assert found_time == 7
@@ -359,9 +355,7 @@ class TestHistorySeries:
         best_values = [v for _, v in best_series]
 
         # Best values should be non-decreasing
-        assert all(
-            best_values[i] <= best_values[i + 1] for i in range(len(best_values) - 1)
-        )
+        assert all(best_values[i] <= best_values[i + 1] for i in range(len(best_values) - 1))
 
     def test_history_series_alignment(self):
         """Current and best series should have evaluation times aligned."""
@@ -388,7 +382,7 @@ class TestRuntimeProfileHelpers:
         levels = np.array([1.0, 2.0, 4.0, 5.0])
 
         np.testing.assert_array_equal(
-            runtime_profile_single_run(trajectory, levels),
+            inv_runtime_profile_single_run(trajectory, levels),
             np.array([1.0, 3.0, 5.0, np.inf]),
         )
 
@@ -401,7 +395,7 @@ class TestRuntimeProfileHelpers:
         ]
         levels = np.array([2.5])
 
-        hitting_times = runtime_profile_single_run(trajectory, levels)
+        hitting_times = inv_runtime_profile_single_run(trajectory, levels)
         np.testing.assert_array_equal(hitting_times, np.array([3.0]))
 
     def test_runtime_profile_single_run_first_hitting_not_found(self):
@@ -412,7 +406,7 @@ class TestRuntimeProfileHelpers:
         ]
         levels = np.array([5.0])
 
-        hitting_times = runtime_profile_single_run(trajectory, levels)
+        hitting_times = inv_runtime_profile_single_run(trajectory, levels)
         np.testing.assert_array_equal(hitting_times, np.array([np.inf]))
 
     def test_runtime_profile_single_run_first_hitting_at_start(self):
@@ -423,7 +417,7 @@ class TestRuntimeProfileHelpers:
         ]
         levels = np.array([10.0])
 
-        hitting_times = runtime_profile_single_run(trajectory, levels)
+        hitting_times = inv_runtime_profile_single_run(trajectory, levels)
         np.testing.assert_array_equal(hitting_times, np.array([1.0]))
 
     def test_runtime_profile_single_run_uses_best_value(self):
@@ -435,7 +429,7 @@ class TestRuntimeProfileHelpers:
         ]
         levels = np.array([5.5])
 
-        hitting_times = runtime_profile_single_run(trajectory, levels)
+        hitting_times = inv_runtime_profile_single_run(trajectory, levels)
         np.testing.assert_array_equal(hitting_times, np.array([3.0]))
 
     def test_runtime_profile_single_run_multiple_levels_sequence(self):
@@ -448,7 +442,7 @@ class TestRuntimeProfileHelpers:
         ]
         levels = np.array([1.5, 2.5, 3.5, 4.5])
 
-        hitting_times = runtime_profile_single_run(trajectory, levels)
+        hitting_times = inv_runtime_profile_single_run(trajectory, levels)
         np.testing.assert_array_equal(hitting_times, np.array([2.0, 3.0, 4.0, 5.0]))
 
     def test_runtime_profile_single_run_exact_boundary(self):
@@ -459,7 +453,7 @@ class TestRuntimeProfileHelpers:
         ]
         levels = np.array([3.0])
 
-        hitting_times = runtime_profile_single_run(trajectory, levels)
+        hitting_times = inv_runtime_profile_single_run(trajectory, levels)
         np.testing.assert_array_equal(hitting_times, np.array([2.0]))
 
     def test_compute_runtime_profile(self):
@@ -470,7 +464,7 @@ class TestRuntimeProfileHelpers:
         levels = np.array([1.0, 2.0, 3.0])
         time_grid = np.array([1.0, 2.0, 3.0])
 
-        profile = compute_runtime_profile(trajectories, levels, time_grid)
+        profile = compute_inv_runtime_profile(trajectories, levels, time_grid)
         expected = np.array(
             [
                 [0.5, 0.5, 1.0],
@@ -489,7 +483,7 @@ class TestRuntimeProfileHelpers:
         levels = np.array([1.0])
         time_grid = np.array([1.0, 2.0, 3.0])
 
-        profile = compute_runtime_profile(trajectories, levels, time_grid)
+        profile = compute_inv_runtime_profile(trajectories, levels, time_grid)
         expected = np.array([[1.0 / 3.0, 1.0 / 3.0, 2.0 / 3.0]])
         np.testing.assert_allclose(profile, expected)
 
@@ -500,7 +494,7 @@ class TestRuntimeProfileHelpers:
 
         # At T=1: (1-0) + (1-0) = 2
         # At T=2: (1-1) + (1-0) added over time => 3 total
-        ecr = profile_to_expected_cumulative_regret(profile, fitness_levels, time_grid)
+        ecr = inv_profile_to_expected_cumulative_regret(profile, fitness_levels, time_grid)
         np.testing.assert_allclose(ecr, np.array([2.0, 3.0]))
 
     def test_runtime_profile_rejects_unsorted_time_grid(self):
@@ -509,7 +503,7 @@ class TestRuntimeProfileHelpers:
         time_grid = np.array([2.0, 1.0])
 
         with pytest.raises(ValueError, match="time_grid"):
-            compute_runtime_profile(trajectories, levels, time_grid)
+            compute_inv_runtime_profile(trajectories, levels, time_grid)
 
     def test_profile_to_expected_cumulative_regret_rejects_shape_mismatch(self):
         profile = np.zeros((2, 3))
@@ -517,18 +511,18 @@ class TestRuntimeProfileHelpers:
         time_grid = np.array([1.0, 2.0, 3.0])
 
         with pytest.raises(ValueError, match="profile shape"):
-            profile_to_expected_cumulative_regret(profile, fitness_levels, time_grid)
+            inv_profile_to_expected_cumulative_regret(profile, fitness_levels, time_grid)
 
     def test_compute_runtime_profile_rejects_empty_trajectories(self):
         levels = np.array([1.0])
         time_grid = np.array([1.0, 2.0, 3.0])
 
         with pytest.raises(ValueError, match="at least one trajectory"):
-            compute_runtime_profile([], levels, time_grid)
+            compute_inv_runtime_profile([], levels, time_grid)
 
     def test_runtime_profile_single_run_rejects_unsorted_levels(self):
         trajectory = [(1, 1.0, 1.0)]
         levels = np.array([2.0, 1.0])
 
         with pytest.raises(ValueError, match="sorted"):
-            runtime_profile_single_run(trajectory, levels)
+            inv_runtime_profile_single_run(trajectory, levels)

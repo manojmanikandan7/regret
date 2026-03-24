@@ -1,9 +1,10 @@
 """Pytest configuration and shared fixtures for regret tests."""
 
-import pytest
 import numpy as np
+import pytest
+
 from regret.core.base import Problem
-from regret.problems.pseudo_boolean import OneMax, LeadingOnes
+from regret.problems.pseudo_boolean import LeadingOnes, OneMax
 
 
 class SimpleProblem(Problem):

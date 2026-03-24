@@ -156,12 +156,8 @@ def test_generate_plots_uses_selected_budget_for_budget_specific_outputs(
     def _noop(*args, **kwargs):
         return None
 
-    monkeypatch.setattr(
-        "regret.experiments.utils.plot_simple_regret_boxplots", _record_boxplot
-    )
-    monkeypatch.setattr(
-        "regret.experiments.utils.plot_performance_profile", _record_profile
-    )
+    monkeypatch.setattr("regret.experiments.utils.plot_simple_regret_boxplots", _record_boxplot)
+    monkeypatch.setattr("regret.experiments.utils.plot_performance_profile", _record_profile)
     monkeypatch.setattr("regret.experiments.utils.plot_simple_regret_curves", _noop)
     monkeypatch.setattr("regret.experiments.utils.plot_convergence_probability", _noop)
     monkeypatch.setattr("regret.experiments.utils.plot_comparison_heatmap", _noop)
@@ -215,9 +211,7 @@ def test_generate_plots_uses_selected_budget_for_budget_specific_outputs(
     assert "distribution" in str(calls["profile"]["save_path"])
 
 
-def test_generate_plots_problem_budget_overrides_global_budget(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_generate_plots_problem_budget_overrides_global_budget(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     calls: dict[str, dict[str, object]] = {}
 
     def _record_boxplot(results, budget, save_path, title, show):
@@ -237,12 +231,8 @@ def test_generate_plots_problem_budget_overrides_global_budget(
     def _noop(*args, **kwargs):
         return None
 
-    monkeypatch.setattr(
-        "regret.experiments.utils.plot_simple_regret_boxplots", _record_boxplot
-    )
-    monkeypatch.setattr(
-        "regret.experiments.utils.plot_performance_profile", _record_profile
-    )
+    monkeypatch.setattr("regret.experiments.utils.plot_simple_regret_boxplots", _record_boxplot)
+    monkeypatch.setattr("regret.experiments.utils.plot_performance_profile", _record_profile)
     monkeypatch.setattr("regret.experiments.utils.plot_simple_regret_curves", _noop)
     monkeypatch.setattr("regret.experiments.utils.plot_convergence_probability", _noop)
     monkeypatch.setattr("regret.experiments.utils.plot_comparison_heatmap", _noop)
@@ -323,12 +313,10 @@ def test_generate_plots_does_not_write_runtime_profile_csv_when_enabled(
     monkeypatch.setattr("regret.experiments.utils.plot_history", _noop)
     monkeypatch.setattr("regret.experiments.utils.plot_regret_curves", _noop)
     monkeypatch.setattr("regret.experiments.utils.plot_ttfo_distribution", _noop)
-    monkeypatch.setattr("regret.experiments.utils.plot_runtime_profile_surface", _noop)
-    monkeypatch.setattr("regret.experiments.utils.plot_runtime_profile_curves", _noop)
+    monkeypatch.setattr("regret.experiments.utils.plot_inverse_runtime_profile_surface", _noop)
+    monkeypatch.setattr("regret.experiments.utils.plot_inverse_runtime_profile_curves", _noop)
     monkeypatch.setattr("regret.experiments.utils.plot_cr_profile_verification", _noop)
-    monkeypatch.setattr(
-        "regret.analysis.profiles.run_profile_analysis", _fake_profile_analysis
-    )
+    monkeypatch.setattr("regret.analysis.profiles.run_profile_analysis", _fake_profile_analysis)
 
     results = {
         ("RLS", 10): [
@@ -374,22 +362,18 @@ def test_generate_plots_does_not_write_runtime_profile_csv_when_enabled(
                 "regret_curves": {"enabled": False},
                 "convergence_probability": {"enabled": False},
                 "comparison_heatmap": {"enabled": False},
-                "runtime_profile_surface": {"enabled": False},
-                "runtime_profile_curves": {"enabled": False},
+                "inverse_runtime_profile_surface": {"enabled": False},
+                "inverse_runtime_profile_curves": {"enabled": False},
                 "cr_profile_verification": {"enabled": False},
             },
         },
     )
 
-    csv_path = (
-        tmp_path / "suite" / "onemax" / "n8" / "profiles" / "cr_profile_data_rls.csv"
-    )
+    csv_path = tmp_path / "suite" / "onemax" / "n8" / "profiles" / "cr_profile_data_rls.csv"
     assert not csv_path.exists()
 
 
-def test_export_runtime_profile_csv_writes_to_raw_root(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_export_runtime_profile_csv_writes_to_raw_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     def _fake_profile_analysis(results, f_star, budget):
         _ = (results, f_star, budget)
         time_grid = [1.0, 2.0, 3.0]
@@ -399,9 +383,7 @@ def test_export_runtime_profile_csv_writes_to_raw_root(
         profile_ecr = {"RLS": [2.1, 1.1, 0.1]}
         return time_grid, fitness_levels, profiles, empirical_ecr, profile_ecr
 
-    monkeypatch.setattr(
-        "regret.analysis.profiles.run_profile_analysis", _fake_profile_analysis
-    )
+    monkeypatch.setattr("regret.analysis.profiles.run_profile_analysis", _fake_profile_analysis)
 
     results = {
         ("RLS", 10): [
@@ -434,9 +416,7 @@ def test_export_runtime_profile_csv_writes_to_raw_root(
         raw_output_dir=tmp_path,
     )
 
-    csv_path = (
-        tmp_path / "suite" / "onemax" / "n8" / "profiles" / "cr_profile_data_rls.csv"
-    )
+    csv_path = tmp_path / "suite" / "onemax" / "n8" / "profiles" / "cr_profile_data_rls.csv"
     assert csv_path.exists()
 
     with csv_path.open("r", encoding="utf-8", newline="") as f:
@@ -477,18 +457,10 @@ def test_export_runtime_profile_csv_plots_when_figures_dir_is_provided(
         _ = kwargs
         calls["verification"] = save_path
 
-    monkeypatch.setattr(
-        "regret.analysis.profiles.run_profile_analysis", _fake_profile_analysis
-    )
-    monkeypatch.setattr(
-        "regret.experiments.utils.plot_runtime_profile_surface", _record_surface
-    )
-    monkeypatch.setattr(
-        "regret.experiments.utils.plot_runtime_profile_curves", _record_curves
-    )
-    monkeypatch.setattr(
-        "regret.experiments.utils.plot_cr_profile_verification", _record_verification
-    )
+    monkeypatch.setattr("regret.analysis.profiles.run_profile_analysis", _fake_profile_analysis)
+    monkeypatch.setattr("regret.experiments.utils.plot_inverse_runtime_profile_surface", _record_surface)
+    monkeypatch.setattr("regret.experiments.utils.plot_inverse_runtime_profile_curves", _record_curves)
+    monkeypatch.setattr("regret.experiments.utils.plot_cr_profile_verification", _record_verification)
 
     results = {
         ("RLS", 10): [
@@ -518,8 +490,8 @@ def test_export_runtime_profile_csv_plots_when_figures_dir_is_provided(
                 },
             },
             "plots": {
-                "runtime_profile_surface": {"enabled": True},
-                "runtime_profile_curves": {"enabled": True},
+                "inverse_runtime_profile_surface": {"enabled": True},
+                "inverse_runtime_profile_curves": {"enabled": True},
                 "cr_profile_verification": {"enabled": True},
             },
         },
@@ -531,13 +503,5 @@ def test_export_runtime_profile_csv_plots_when_figures_dir_is_provided(
     assert "figures/suite/onemax/n8/profiles" in calls["curves"]
     assert "figures/suite/onemax/n8/profiles" in calls["verification"]
 
-    csv_path = (
-        tmp_path
-        / "raw"
-        / "suite"
-        / "onemax"
-        / "n8"
-        / "profiles"
-        / "cr_profile_data_rls.csv"
-    )
+    csv_path = tmp_path / "raw" / "suite" / "onemax" / "n8" / "profiles" / "cr_profile_data_rls.csv"
     assert csv_path.exists()

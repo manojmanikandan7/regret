@@ -1,8 +1,9 @@
 """Tests for regret.core.base module (Problem and Algorithm ABCs)."""
 
-import pytest
 import numpy as np
-from regret.core.base import Problem, Algorithm
+import pytest
+
+from regret.core.base import Algorithm, Problem
 
 
 class TestProblemABC:
@@ -58,7 +59,7 @@ class TestAlgorithmABC:
     def test_algorithm_is_abstract(self):
         """Test that Algorithm cannot be instantiated directly."""
         with pytest.raises(TypeError):
-            Algorithm(None)
+            Algorithm(None)  # ty:ignore[invalid-argument-type]
 
 
 class TestProblemEvaluation:
@@ -126,6 +127,8 @@ class TestAlgorithmRunLifecycle:
         assert alg.evaluations == 6
         assert len(alg.history) == 6
         assert best_value == alg.best_value
+        assert best_solution is not None
+        assert alg.best_solution is not None
         assert np.array_equal(best_solution, alg.best_solution)
 
     def test_best_solution_matches_best_value_after_run(self, simple_problem):
