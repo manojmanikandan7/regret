@@ -12,14 +12,18 @@ def compute_statistics(regrets: np.ndarray) -> dict:
     Returns:
         Mapping with basic summary statistics.
     """
+    regrets_arr = np.asarray(regrets, dtype=float)
+    if regrets_arr.ndim != 1 or regrets_arr.size == 0:
+        raise ValueError("regrets must be a non-empty 1D array.")
+
     return {
-        "mean": float(np.mean(regrets)),
-        "median": float(np.median(regrets)),
-        "std": float(np.std(regrets)),
-        "min": float(np.min(regrets)),
-        "max": float(np.max(regrets)),
-        "q25": float(np.percentile(regrets, 25)),
-        "q75": float(np.percentile(regrets, 75)),
+        "mean": float(np.mean(regrets_arr)),
+        "median": float(np.median(regrets_arr)),
+        "std": float(np.std(regrets_arr)),
+        "min": float(np.min(regrets_arr)),
+        "max": float(np.max(regrets_arr)),
+        "q25": float(np.percentile(regrets_arr, 25)),
+        "q75": float(np.percentile(regrets_arr, 75)),
     }
 
 
@@ -33,7 +37,13 @@ def probability_optimal(regrets: np.ndarray, tolerance: float = 1e-9) -> float:
     Returns:
         Fraction of runs with regret within the tolerance.
     """
-    return float(np.mean(regrets <= tolerance))
+    regrets_arr = np.asarray(regrets, dtype=float)
+    if regrets_arr.ndim != 1 or regrets_arr.size == 0:
+        raise ValueError("regrets must be a non-empty 1D array.")
+    if tolerance < 0:
+        raise ValueError("tolerance must be non-negative.")
+
+    return float(np.mean(regrets_arr <= tolerance))
 
 
 def history_current_series(trajectory: Trajectory) -> list[tuple[int, float]]:
@@ -146,23 +156,6 @@ def ttfo(trajectory: Trajectory, f_star: float, tolerance: float = 1e-9) -> int 
     return None
 
 
-def first_hitting_time_fitness_level(
-    trajectory: Trajectory,
-    fitness_level: float,
-) -> int | None:
-    """Return first evaluation at which best fitness reaches a threshold (i.e., best so far >= fitness_level).
-
-    Args:
-        trajectory: Sequence of (evaluations, current_value, best_value) tuples.
-        fitness_level: Target fitness threshold.
-
-    Returns:
-        Evaluation index when fitness_level is first reached, or None if never reached.
-    """
-    for t, _, best in trajectory:
-        if best >= fitness_level:
-            return int(t)
-    return None
 
 
 def runtime_profile_single_run(
@@ -178,12 +171,18 @@ def runtime_profile_single_run(
     Returns:
         Array of shape (len(fitness_levels),) with hitting times; np.inf where level unreached.
     """
-    hitting_times = np.full(len(fitness_levels), np.inf)
-    # Walk the trajectory once; best is monotone so we can sweep levels
+    levels = np.asarray(fitness_levels, dtype=float)
+    if levels.ndim != 1:
+        raise ValueError("fitness_levels must be a 1D array.")
+    if levels.size and np.any(np.diff(levels) < 0):
+        raise ValueError("fitness_levels must be sorted in non-decreasing order.")
+
+    hitting_times = np.full(levels.size, np.inf)
+    # Walk the trajectory once; best-so-far values are monotone so we can sweep levels
     level_idx = 0
-    n_levels = len(fitness_levels)
+    n_levels = levels.size
     for t, _, best in trajectory:
-        while level_idx < n_levels and best >= fitness_levels[level_idx]:
+        while level_idx < n_levels and best >= levels[level_idx]:   # If best at t >= to a level k, record the t
             hitting_times[level_idx] = float(t)
             level_idx += 1
         if level_idx >= n_levels:
@@ -207,20 +206,30 @@ def compute_runtime_profile(
         Array of shape (F, T) where element [i, j] is the fraction of runs
         that reached fitness_levels[i] by time_grid[j].
     """
+    levels = np.asarray(fitness_levels, dtype=float)
+    times = np.asarray(time_grid, dtype=float)
+    if levels.ndim != 1 or times.ndim != 1:
+        raise ValueError("fitness_levels and time_grid must be 1D arrays.")
+    if levels.size and np.any(np.diff(levels) < 0):
+        raise ValueError("fitness_levels must be sorted in non-decreasing order.")
+    if times.size and np.any(np.diff(times) < 0):
+        raise ValueError("time_grid must be sorted in non-decreasing order.")
+    if len(trajectories) == 0:
+        raise ValueError("trajectories must contain at least one trajectory.")
+
     n_runs = len(trajectories)
-    n_levels = len(fitness_levels)
-    n_times = len(time_grid)
+    n_levels = levels.size
 
     # hitting_times[run, level] = first evaluation reaching that level (inf if not)
     hitting_times = np.full((n_runs, n_levels), np.inf)
     for r, traj in enumerate(trajectories):
-        hitting_times[r] = runtime_profile_single_run(traj, fitness_levels)
+        hitting_times[r] = runtime_profile_single_run(traj, levels)
 
     # profile[level, time] = fraction of runs where hitting_time <= time_grid[t]
     # Shape: (F, T)
     # Outer broadcast: (n_runs, n_levels, 1) <= (1, 1, n_times)
     profile = np.mean(
-        hitting_times[:, :, np.newaxis] <= time_grid[np.newaxis, np.newaxis, :],
+        hitting_times[:, :, np.newaxis] <= times[np.newaxis, np.newaxis, :],
         axis=0,
     )  # shape (F, T)
     return profile
@@ -245,24 +254,39 @@ def profile_to_expected_cumulative_regret(
     Returns:
         Array of shape (T,) containing expected cumulative regret at each time point in time_grid.
     """
-    # survival: P(\\tau_v > t) = 1 − profile
-    survival = 1.0 - profile  # (F, T)
+    profile_arr = np.asarray(profile, dtype=float)
+    levels = np.asarray(fitness_levels, dtype=float)
+    times = np.asarray(time_grid, dtype=float)
 
-    # FIXME: Level spacing (\delta(v)): for integer fitness this is 1, but handle non-unit spacing
-    if len(fitness_levels) > 1:
-        delta_v = np.diff(fitness_levels, prepend=fitness_levels[0])
-    else:
-        delta_v = np.ones(1)
+    if profile_arr.ndim != 2:
+        raise ValueError("profile must be a 2D array of shape (F, T).")
+    if levels.ndim != 1 or times.ndim != 1:
+        raise ValueError("fitness_levels and time_grid must be 1D arrays.")
+    if profile_arr.shape != (levels.size, times.size):
+        raise ValueError(
+            "profile shape must match (len(fitness_levels), len(time_grid))."
+        )
+    if levels.size and np.any(np.diff(levels) < 0):
+        raise ValueError("fitness_levels must be sorted in non-decreasing order.")
+    if times.size and np.any(np.diff(times) < 0):
+        raise ValueError("time_grid must be sorted in non-decreasing order.")
 
-    # Weighted cumulative sum along the time axis, then sum over levels
-    # For each level v: contribution at time T = Σₜ'₌₁ᵀ survival[v, t'] * Δt
-    # \delta(t) = 1 for unit-spaced evaluations; use np.cumsum with time spacing
-    dt = np.diff(time_grid, prepend=time_grid[0])  # (T,)
+    # survival: P(t < \tau_v) = 1 - profile [profile: P(t >= \tau_v)]
+    survival = 1.0 - profile_arr  # (F, T)
+
+    # Level spacing \delta(v) from origin to include first level weight.
+    delta_v = np.diff(levels, prepend=0.0)  # (F,)
+
+    ## Weighted cumulative sum along the time axis, then sum over levels
+
+    # Time spacing \delta(t) from origin to include [0, time_grid[0]] interval.
+    dt = np.diff(times, prepend=0.0)  # (T,)
 
     # Weighted area under survival curve up to each T
-    # cumulative sum of (survival * dt) along time axis
+    # cumulative sum of (survival * dt) along time axis (The Sum_{t=1}^T part)
     area_per_level = np.cumsum(survival * dt[np.newaxis, :], axis=1)  # (F, T)
 
-    # Sum over levels, weighted by delta_v
-    ecr = np.einsum("f,ft->t", delta_v, area_per_level)
-    return ecr
+    # Sum over levels, weighted by \delta(v) (The Sum_{v=0}^f* part)
+    # ecr = np.einsum("f,ft->t", delta_v, area_per_level)
+    expected_cumulative_regret = delta_v @ area_per_level
+    return expected_cumulative_regret
