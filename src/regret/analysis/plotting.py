@@ -9,17 +9,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.figure import Figure
 
-from regret.core.metrics import (
-    cumulative_regret,
-    history_best_series,
-    history_current_series,
-    instantaneous_regret,
-)
 from regret.analysis.statistics import (
     bootstrap_confidence_interval,
     effect_size_cohens_d,
     mann_whitney_test,
     wilcoxon_test,
+)
+from regret.core.metrics import (
+    cumulative_regret,
+    history_best_series,
+    history_current_series,
+    instantaneous_regret,
 )
 
 # Set publication-quality defaults
@@ -88,18 +88,14 @@ def _summary_interval(
         return c, c - d, c + d
     if mode == "bootstrap_ci":
         c = float(np.mean(vals))
-        lo, hi = bootstrap_confidence_interval(
-            vals, n_bootstrap=n_bootstrap, confidence=confidence
-        )
+        lo, hi = bootstrap_confidence_interval(vals, n_bootstrap=n_bootstrap, confidence=confidence)
         return c, lo, hi
     if mode == "iqr":
         c = float(np.median(vals))
         lo, hi = np.percentile(vals, [25, 75])
         return c, float(lo), float(hi)
 
-    raise ValueError(
-        "spread must be one of {'none', 'sem', 'sd', 'bootstrap_ci', 'iqr'}."
-    )
+    raise ValueError("spread must be one of {'none', 'sem', 'sd', 'bootstrap_ci', 'iqr'}.")
 
 
 def _format_pvalue(pvalue: float) -> str:
@@ -158,9 +154,7 @@ def _pairwise_stats_text(
             test_name = "MWU"
 
         d = _safe_cohens_d(ref_vals, vals)
-        lines.append(
-            f"{name}: {test_name} p={_format_pvalue(float(pval))}, d={d:.3f}, stat={float(stat):.2f}"
-        )
+        lines.append(f"{name}: {test_name} p={_format_pvalue(float(pval))}, d={d:.3f}, stat={float(stat):.2f}")
 
     if len(lines) == 1:
         return ""
@@ -273,9 +267,7 @@ def plot_simple_regret_curves(
 
         for budget in budgets:
             if (alg, budget) in results:
-                regrets = np.array(
-                    [r["regret"] for r in results[(alg, budget)]], dtype=float
-                )
+                regrets = np.array([r["regret"] for r in results[(alg, budget)]], dtype=float)
                 center, lower, upper = _summary_interval(
                     regrets,
                     spread=spread,
@@ -322,9 +314,7 @@ def plot_simple_regret_curves(
                     dist_map.keys(),
                     key=lambda name: float(np.nanmean(_clean_numeric(dist_map[name]))),
                 )
-                text = _pairwise_stats_text(
-                    dist_map, reference=reference, paired=paired_runs
-                )
+                text = _pairwise_stats_text(dist_map, reference=reference, paired=paired_runs)
                 if text:
                     _draw_pairwise_annotation(
                         ax,
@@ -348,16 +338,13 @@ def plot_simple_regret_boxplots(
     """Create boxplots comparing algorithms at a specific budget."""
 
     algorithms = sorted([alg for alg, b in results.keys() if b == budget])
-    data = [
-        np.array([r["regret"] for r in results[(alg, budget)]], dtype=float)
-        for alg in algorithms
-    ]
+    data = [np.array([r["regret"] for r in results[(alg, budget)]], dtype=float) for alg in algorithms]
 
     fig, ax = plt.subplots()
     bp = ax.boxplot(data, tick_labels=algorithms, patch_artist=True, notch=True)
 
     colors = cm.get_cmap("Set3")(np.linspace(0, 1, len(algorithms)))
-    for patch, color in zip(bp["boxes"], colors):
+    for patch, color in zip(bp["boxes"], colors, strict=False):
         patch.set_facecolor(color)
 
     if show_points:
@@ -373,7 +360,7 @@ def plot_simple_regret_boxplots(
     plt.xticks(rotation=45, ha="right")
 
     if annotate_pairwise and algorithms:
-        distributions = {alg: vals for alg, vals in zip(algorithms, data)}
+        distributions = {alg: vals for alg, vals in zip(algorithms, data, strict=False)}
         ref = reference_algorithm
         if ref is None and distributions:
             ref = min(
@@ -407,9 +394,7 @@ def plot_convergence_probability(
         uppers = []
         for budget in budgets:
             if (alg, budget) in results:
-                regrets = np.array(
-                    [r["regret"] for r in results[(alg, budget)]], dtype=float
-                )
+                regrets = np.array([r["regret"] for r in results[(alg, budget)]], dtype=float)
                 successes = regrets < 1e-9
                 p = float(np.mean(successes))
                 probs.append(p)
@@ -456,9 +441,7 @@ def plot_comparison_heatmap(
     for i, alg in enumerate(algorithms):
         for j, budget in enumerate(budgets):
             if (alg, budget) in results:
-                regrets = np.array(
-                    [r["regret"] for r in results[(alg, budget)]], dtype=float
-                )
+                regrets = np.array([r["regret"] for r in results[(alg, budget)]], dtype=float)
                 data[i, j] = np.log10(np.mean(regrets) + 1e-10)
             else:
                 data[i, j] = np.nan
@@ -723,9 +706,7 @@ def plot_regret_curves(
 
         for trajectory in trajectories:
             if series == "instantaneous":
-                series_points = instantaneous_regret(
-                    trajectory, f_star, use_best=use_best
-                )
+                series_points = instantaneous_regret(trajectory, f_star, use_best=use_best)
             elif series == "cumulative":
                 series_points = cumulative_regret(trajectory, f_star, use_best=use_best)
             else:
@@ -875,7 +856,7 @@ def plot_ttfo_distribution(
     colors = cm.get_cmap("tab10")(np.linspace(0, 1, len(algorithms)))
     ttfo_map: dict[str, np.ndarray] = {}
 
-    for idx, (alg, color) in enumerate(zip(algorithms, colors), start=1):
+    for idx, (alg, color) in enumerate(zip(algorithms, colors, strict=False), start=1):
         runs = results[alg]
         ttfos = []
 
@@ -895,9 +876,7 @@ def plot_ttfo_distribution(
 
         # Place samples on algorithm rows with light jitter to show multiplicity.
         rng = np.random.default_rng(123 + idx)
-        y = np.full(len(ttfos), fill_value=idx, dtype=float) + rng.uniform(
-            -0.12, 0.12, size=len(ttfos)
-        )
+        y = np.full(len(ttfos), fill_value=idx, dtype=float) + rng.uniform(-0.12, 0.12, size=len(ttfos))
         ax.scatter(
             ttfos,
             y,
@@ -939,8 +918,8 @@ def plot_ttfo_distribution(
     _finalize_figure(fig, save_path=save_path, show=show)
 
 
-def plot_runtime_profile_surface(
-    profile: np.ndarray,
+def plot_inverse_runtime_profile_surface(
+    inv_profile: np.ndarray,
     fitness_levels: np.ndarray,
     time_grid: np.ndarray,
     f_star: float,
@@ -949,10 +928,10 @@ def plot_runtime_profile_surface(
     title: str | None = None,
     n_contours: int = 6,
 ):
-    """Visualize runtime profile P(\\tau_v <= T) as a 2D heatmap with contours.
+    """Visualize inverse runtime profile P(\\tau_v <= T) as a 2D heatmap with contours.
 
     Args:
-        profile: Runtime profile array of shape (F, T) from compute_runtime_profile.
+        inv_profile: Inverse Runtime profile array of shape (F, T) from compute_inverse_runtime_profile.
         fitness_levels: Fitness level thresholds (rows, shape F).
         time_grid: Evaluation time points (columns, shape T).
         algorithm_name: Algorithm name (used in logging).
@@ -969,7 +948,7 @@ def plot_runtime_profile_surface(
 
     # Heatmap
     im = ax.imshow(
-        profile,
+        inv_profile,
         origin="lower",
         aspect="auto",
         extent=(time_grid[0], time_grid[-1], fitness_levels[0], fitness_levels[-1]),
@@ -985,7 +964,7 @@ def plot_runtime_profile_surface(
     ax.contour(
         T_grid_2d,
         V_grid_2d,
-        profile,
+        inv_profile,
         levels=levels,
         colors="white",
         linewidths=0.8,
@@ -1002,8 +981,8 @@ def plot_runtime_profile_surface(
     _finalize_figure(fig, save_path=save_path, show=show)
 
 
-def plot_runtime_profile_curves(
-    profiles: dict[str, np.ndarray],
+def plot_inverse_runtime_profile_curves(
+    inv_profiles: dict[str, np.ndarray],
     fitness_levels: np.ndarray,
     time_grid: np.ndarray,
     selected_levels: list[float],
@@ -1012,12 +991,12 @@ def plot_runtime_profile_curves(
     show: bool = True,
     title: str | None = None,
 ):
-    """Compare runtime profiles across algorithms at selected fitness levels.
+    """Compare inverse runtime profiles across algorithms at selected fitness levels.
 
     Plots P(\\tau_v <= T) vs T for each algorithm at representative fitness thresholds.
 
     Args:
-        profiles: Mapping of algorithm name -> runtime profile array (F, T).
+        inv_profiles: Mapping of algorithm name -> inverse runtime profile array (F, T).
         fitness_levels: Fitness level thresholds (shape F).
         time_grid: Evaluation time points (shape T).
         selected_levels: List of fitness levels to plot (subselect from fitness_levels).
@@ -1029,19 +1008,17 @@ def plot_runtime_profile_curves(
     Returns:
         None. Saves and/or displays the figure based on save_path and show.
     """
-    fig, axes = plt.subplots(
-        1, len(selected_levels), figsize=(5 * len(selected_levels), 5), sharey=True
-    )
+    fig, axes = plt.subplots(1, len(selected_levels), figsize=(5 * len(selected_levels), 5), sharey=True)
     if len(selected_levels) == 1:
         axes = [axes]
 
-    for ax, level in zip(axes, selected_levels):
+    for ax, level in zip(axes, selected_levels, strict=False):
         # Find closest index in fitness_levels
         idx = int(np.argmin(np.abs(fitness_levels - level)))
         actual_level = fitness_levels[idx]
 
-        for alg_name, profile in profiles.items():
-            ax.plot(time_grid, profile[idx, :], label=alg_name, linewidth=2)
+        for alg_name, inv_profile in inv_profiles.items():
+            ax.plot(time_grid, inv_profile[idx, :], label=alg_name, linewidth=2)
 
         ax.set_title(f"v = {actual_level:.0f}")
         ax.set_xlabel("Evaluations (T)")
@@ -1071,7 +1048,8 @@ def plot_cr_profile_verification(
     Plots expected cumulative regret computed both directly (from per-run CR)
     and via the runtime profile.
       - Direct: mean of per-run cumulative regret (use_best=True)
-      - Profile: Sum_{v=1}^{f*} Sum_{t'=1}^{T} [1 - P(\\tau_v <= t')] {P(\\tau_v <=)}
+      - Profile: Sum_{v=1}^{f*} Sum_{t'=1}^{T} [1 - P(\\tau_v <= t')]
+        {inverse profile: P(\\tau_v <= t); P(\\tau_v > t) = 1 - P(\\tau_v <= t)}
     They should match; any gap indicates an error
     in trajectory recording or metric computation.
     NOTE: The layer-cake identity is a theorem about integer-valued, unit-increment fitness functions.
@@ -1094,9 +1072,7 @@ def plot_cr_profile_verification(
 
     for i, alg in enumerate(empirical_ecr):
         c = colors[i % len(colors)]
-        ax.plot(
-            time_grid, empirical_ecr[alg], color=c, linewidth=2, label=f"{alg} (direct)"
-        )
+        ax.plot(time_grid, empirical_ecr[alg], color=c, linewidth=2, label=f"{alg} (direct)")
         ax.plot(
             time_grid,
             profile_ecr[alg],

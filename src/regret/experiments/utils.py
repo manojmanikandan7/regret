@@ -5,24 +5,27 @@ Note: These utilities respect the schema given by `./schema.py` for parsing the 
 """
 
 import csv
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, cast
-from regret.core.base import Problem, Algorithm
+from typing import Any, cast
+
 from regret.analysis.plotting import (
     plot_comparison_heatmap,
     plot_convergence_probability,
+    plot_cr_profile_verification,
     plot_history,
+    plot_inverse_runtime_profile_curves,
+    plot_inverse_runtime_profile_surface,
     plot_performance_profile,
     plot_regret_curves,
-    plot_runtime_profile_curves,
-    plot_runtime_profile_surface,
-    plot_cr_profile_verification,
     plot_simple_regret_boxplots,
     plot_simple_regret_curves,
     plot_ttfo_distribution,
 )
-from . import PROBLEM_REGISTRY, ALGORITHM_REGISTRY, COOLING_REGISTRY
+from regret.core.base import Algorithm, Problem
+
+from . import ALGORITHM_REGISTRY, COOLING_REGISTRY, PROBLEM_REGISTRY
 
 
 @dataclass(frozen=True)
@@ -119,20 +122,14 @@ def resolve_cooling(spec: Any) -> Callable[[int], float]:
         key = spec.strip().lower()
         if key in COOLING_REGISTRY:
             return COOLING_REGISTRY[key]()
-        raise ValueError(
-            f"Unknown cooling schedule: {spec!r}. "
-            f"Available: {sorted(COOLING_REGISTRY.keys())}"
-        )
+        raise ValueError(f"Unknown cooling schedule: {spec!r}. Available: {sorted(COOLING_REGISTRY.keys())}")
 
     if isinstance(spec, dict):
         kind = str(spec.get("type", "logarithmic")).strip().lower()
         params = spec.get("params", {})
         if kind in COOLING_REGISTRY:
             return COOLING_REGISTRY[kind](**params)
-        raise ValueError(
-            f"Unknown cooling type: {spec.get('type')!r}. "
-            f"Available: {sorted(COOLING_REGISTRY.keys())}"
-        )
+        raise ValueError(f"Unknown cooling type: {spec.get('type')!r}. Available: {sorted(COOLING_REGISTRY.keys())}")
 
     raise ValueError(f"Unsupported cooling specification: {spec!r}")
 
@@ -175,9 +172,7 @@ def parse_problems(config: dict[str, Any]) -> list[ProblemSpec]:
 
     prob_specs = []
     for p in problems_cfg:
-        budget_for_plots = int(
-            p.get("budget_for_plots") or global_plot_budget or max_budget
-        )
+        budget_for_plots = int(p.get("budget_for_plots") or global_plot_budget or max_budget)
         prob_specs.append(
             ProblemSpec(
                 name=p["name"],
@@ -207,9 +202,7 @@ def parse_algorithms(config: dict[str, Any]) -> list[AlgorithmSpec]:
     for a in algorithms_cfg:
         args_cfg = a.get("args", {})
         if not isinstance(args_cfg, dict):
-            raise ValueError(
-                f"Algorithm '{a.get('name', '<unknown>')}' args must be a mapping"
-            )
+            raise ValueError(f"Algorithm '{a.get('name', '<unknown>')}' args must be a mapping")
         specs.append(
             AlgorithmSpec(
                 name=a["name"],
@@ -277,6 +270,7 @@ def write_runtime_profile_csv(
                 time_grid,
                 profile_ecr[alg_name],
                 empirical_ecr[alg_name],
+                strict=False,
             ):
                 writer.writerow([float(t), float(expected_cr), float(mean_cr)])
 
@@ -339,18 +333,16 @@ def export_runtime_profile_data(
     from regret.analysis.profiles import run_profile_analysis
 
     profile_plot_keys = [
-        "runtime_profile_surface",
-        "runtime_profile_curves",
+        "inverse_runtime_profile_surface",
+        "inverse_runtime_profile_curves",
         "cr_profile_verification",
     ]
     profile_cfg = {k: plots_cfg.get(k, {}) for k in profile_plot_keys}
 
-    time_grid, fitness_levels, profiles, empirical_ecr, profile_ecr = (
-        run_profile_analysis(
-            results=history_results,
-            f_star=f_star,
-            budget=budget_for_plots,
-        )
+    time_grid, fitness_levels, inv_profiles, empirical_ecr, profile_ecr = run_profile_analysis(
+        results=history_results,
+        f_star=f_star,
+        budget=budget_for_plots,
     )
 
     if empirical_ecr and profile_ecr:
@@ -367,10 +359,10 @@ def export_runtime_profile_data(
     figures_profile_dir = _profile_dir(figures_output_dir)
     figures_profile_dir.mkdir(parents=True, exist_ok=True)
 
-    if is_plot_enabled(profile_cfg, "runtime_profile_surface"):
-        for alg_name, profile in profiles.items():
-            plot_runtime_profile_surface(
-                profile=profile,
+    if is_plot_enabled(profile_cfg, "inverse_runtime_profile_surface"):
+        for alg_name, inv_profile in inv_profiles.items():
+            plot_inverse_runtime_profile_surface(
+                inv_profile=inv_profile,
                 fitness_levels=fitness_levels,
                 time_grid=time_grid,
                 f_star=f_star,
@@ -378,8 +370,8 @@ def export_runtime_profile_data(
                     figures_profile_dir
                     / get_plot_filename(
                         profile_cfg,
-                        "runtime_profile_surface",
-                        "runtime_profile_surface_{algorithm}.pdf",
+                        "inverse_runtime_profile_surface",
+                        "inverse_runtime_profile_surface_{algorithm}.pdf",
                     ).format(algorithm=alg_name),
                 ),
                 show=False,
@@ -389,10 +381,10 @@ def export_runtime_profile_data(
                 ),
             )
 
-    if is_plot_enabled(profile_cfg, "runtime_profile_curves") and profiles:
+    if is_plot_enabled(profile_cfg, "inverse_runtime_profile_curves") and inv_profiles:
         selected_levels = [f_star * q for q in [0.25, 0.5, 0.75, 0.95]]
-        plot_runtime_profile_curves(
-            profiles=profiles,
+        plot_inverse_runtime_profile_curves(
+            inv_profiles=inv_profiles,
             fitness_levels=fitness_levels,
             time_grid=time_grid,
             selected_levels=selected_levels,
@@ -401,19 +393,15 @@ def export_runtime_profile_data(
                 figures_profile_dir
                 / get_plot_filename(
                     profile_cfg,
-                    "runtime_profile_curves",
-                    "runtime_profile_curves.pdf",
+                    "inverse_runtime_profile_curves",
+                    "inverse_runtime_profile_curves.pdf",
                 ),
             ),
             show=False,
             title=merge_plot_title(title_prefix, "$P(\\tau_v \\leq T)$ by algorithm"),
         )
 
-    if (
-        empirical_ecr
-        and profile_ecr
-        and is_plot_enabled(profile_cfg, "cr_profile_verification")
-    ):
+    if empirical_ecr and profile_ecr and is_plot_enabled(profile_cfg, "cr_profile_verification"):
         plot_cr_profile_verification(
             empirical_ecr=empirical_ecr,
             profile_ecr=profile_ecr,
@@ -497,8 +485,7 @@ def generate_plots(
     dirs = {
         "aggregate": base_dir / structure.get("aggregate", "aggregate"),
         "history": base_dir / structure.get("history", "history"),
-        "distribution": base_dir
-        / structure.get("distribution", f"budget_{budget_for_plots}"),
+        "distribution": base_dir / structure.get("distribution", f"budget_{budget_for_plots}"),
     }
     for d in dirs.values():
         d.mkdir(parents=True, exist_ok=True)
@@ -512,10 +499,7 @@ def generate_plots(
         cfg = plots_cfg["regret_curves"]
         plot_simple_regret_curves(
             results,
-            save_path=str(
-                dirs["aggregate"]
-                / get_plot_filename(plots_cfg, "regret_curves", "regret_curves.pdf")
-            ),
+            save_path=str(dirs["aggregate"] / get_plot_filename(plots_cfg, "regret_curves", "regret_curves.pdf")),
             title=merge_plot_title(TITLE_PREFIX, "Mean Simple Regret vs Budget"),
             log_scale=cfg.get("log_scale", True),
             **_optional_kwargs(
@@ -538,9 +522,7 @@ def generate_plots(
             results,
             save_path=str(
                 dirs["aggregate"]
-                / get_plot_filename(
-                    plots_cfg, "convergence_probability", "convergence_probability.pdf"
-                )
+                / get_plot_filename(plots_cfg, "convergence_probability", "convergence_probability.pdf")
             ),
             title=merge_plot_title(TITLE_PREFIX, "Probability of Optimum vs Budget"),
             **_optional_kwargs(cfg, ["show_confidence_band", "confidence"]),
@@ -564,16 +546,12 @@ def generate_plots(
     # Budget-specific plots
     if is_plot_enabled(plots_cfg, "regret_boxplots"):
         cfg = plots_cfg["regret_boxplots"]
-        filename = cfg.get("filename", "regret_boxplot_b{budget}.pdf").format(
-            budget=budget_for_plots
-        )
+        filename = cfg.get("filename", "regret_boxplot_b{budget}.pdf").format(budget=budget_for_plots)
         plot_simple_regret_boxplots(
             results,
             budget=budget_for_plots,
             save_path=str(dirs["distribution"] / filename),
-            title=merge_plot_title(
-                TITLE_PREFIX, f"Regret Distribution at Budget={budget_for_plots}"
-            ),
+            title=merge_plot_title(TITLE_PREFIX, f"Regret Distribution at Budget={budget_for_plots}"),
             **_optional_kwargs(
                 cfg,
                 [
@@ -588,16 +566,12 @@ def generate_plots(
 
     if is_plot_enabled(plots_cfg, "performance_profile"):
         cfg = plots_cfg["performance_profile"]
-        filename = cfg.get("filename", "performance_profile_b{budget}.pdf").format(
-            budget=budget_for_plots
-        )
+        filename = cfg.get("filename", "performance_profile_b{budget}.pdf").format(budget=budget_for_plots)
         plot_performance_profile(
             results,
             budget=budget_for_plots,
             save_path=str(dirs["distribution"] / filename),
-            title=merge_plot_title(
-                TITLE_PREFIX, f"Performance Profile at Budget={budget_for_plots}"
-            ),
+            title=merge_plot_title(TITLE_PREFIX, f"Performance Profile at Budget={budget_for_plots}"),
             **_optional_kwargs(
                 cfg,
                 ["annotate_pairwise", "reference_algorithm", "paired_runs"],
@@ -621,10 +595,7 @@ def generate_plots(
             plot_history(
                 history_results,
                 f_star=f_star,
-                save_path=str(
-                    dirs["history"]
-                    / get_plot_filename(plots_cfg, plot_key, default_filename)
-                ),
+                save_path=str(dirs["history"] / get_plot_filename(plots_cfg, plot_key, default_filename)),
                 title=merge_plot_title(
                     TITLE_PREFIX,
                     f"{series.title()} Value Trajectory at Budget={budget_for_plots}",
@@ -664,10 +635,7 @@ def generate_plots(
             plot_regret_curves(
                 history_results,
                 f_star=f_star,
-                save_path=str(
-                    dirs["history"]
-                    / get_plot_filename(plots_cfg, plot_key, default_filename)
-                ),
+                save_path=str(dirs["history"] / get_plot_filename(plots_cfg, plot_key, default_filename)),
                 title=merge_plot_title(
                     TITLE_PREFIX,
                     f"{title_suffix} Trajectory at Budget={budget_for_plots}",
@@ -695,9 +663,7 @@ def generate_plots(
                     "history_ttfo_markers.pdf",
                 )
             ),
-            title=merge_plot_title(
-                TITLE_PREFIX, f"TTFO Samples at Budget={budget_for_plots}"
-            ),
+            title=merge_plot_title(TITLE_PREFIX, f"TTFO Samples at Budget={budget_for_plots}"),
             **_optional_kwargs(
                 cfg,
                 [

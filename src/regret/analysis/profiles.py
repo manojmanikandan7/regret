@@ -1,8 +1,9 @@
 import numpy as np
+
 from regret.core.metrics import (
-    compute_runtime_profile,
-    profile_to_expected_cumulative_regret,
+    compute_inv_runtime_profile,
     cumulative_regret,
+    inv_profile_to_expected_cumulative_regret,
 )
 
 
@@ -19,8 +20,9 @@ def run_profile_analysis(
 ]:
     """Analyze runtime profile and cumulative regret relationships.
 
-    Computes runtime profiles P(\\tau_v <= T) for all fitness levels and derives
-    expected cumulative regret via layer-cake identity.
+    Computes runtime inverse profiles P(\\tau_v <= T) for all fitness levels,
+    gets runtime profiles then derives expected cumulative regret via
+    layer-cake representation.
 
     Args:
         results: Algorithm name -> list of run dicts (must include 'trajectory' key).
@@ -32,9 +34,9 @@ def run_profile_analysis(
         where:
         - time_grid: Evaluation grid used for profile and regret calculations.
         - fitness_levels: Fitness thresholds used for runtime profiles.
-        - profiles: alg_name -> runtime profile array (F, T)
+        - inv_profiles: alg_name -> runtime inverse profile array [inv_profiles[f,t] = P(\\tau_f <= t)] (F, T)
         - empirical_ecr: alg_name -> E[CR(T)] from direct cumulative regret
-        - profile_ecr: alg_name -> E[CR(T)] derived from runtime profile
+        - profile_ecr: alg_name -> E[CR(T)] derived from inverse runtime profile
     """
     # Build grids
     # Time grid: every evaluation from 1 to budget
@@ -66,7 +68,7 @@ def run_profile_analysis(
             )
         ).astype(float)
 
-    profiles: dict[str, np.ndarray] = {}
+    inv_profiles: dict[str, np.ndarray] = {}
     empirical_ecr: dict[str, np.ndarray] = {}
     profile_ecr: dict[str, np.ndarray] = {}
 
@@ -75,14 +77,12 @@ def run_profile_analysis(
         if not trajectories:
             continue
 
-        # Compute runtime profile P(\\tau_v <= T) for each fitness level and time
-        profile = compute_runtime_profile(trajectories, fitness_levels, time_grid)
-        profiles[alg_name] = profile
+        # Compute inverse runtime profile P(\\tau_v <= T) for each fitness level and time
+        inv_profile = compute_inv_runtime_profile(trajectories, fitness_levels, time_grid)
+        inv_profiles[alg_name] = inv_profile
 
-        # Derive E[CR(T)] from runtime profile via layer-cake identity
-        profile_ecr[alg_name] = profile_to_expected_cumulative_regret(
-            profile, fitness_levels, time_grid
-        )
+        # Derive E[CR(T)] from inverse runtime profile via layer-cake representation
+        profile_ecr[alg_name] = inv_profile_to_expected_cumulative_regret(inv_profile, fitness_levels, time_grid)
 
         # Compute E[CR(T)] directly from per-run cumulative regrets (with use_best=True, for best-so-far solutions)
         # Interpolate each run's CR onto the shared time_grid
@@ -94,12 +94,10 @@ def run_profile_analysis(
             t_vals = np.array([t for t, _ in cr_points])
             cr_vals = np.array([v for _, v in cr_points])
             # Interpolate onto time_grid (left-fill for t < first evaluation)
-            interpolated = np.interp(
-                time_grid, t_vals, cr_vals, left=0.0, right=cr_vals[-1]
-            )
+            interpolated = np.interp(time_grid, t_vals, cr_vals, left=0.0, right=cr_vals[-1])
             cr_matrix.append(interpolated)
         if cr_matrix:
             # Averages cumulative regret across runs (empirical mean at each eval point t)
             empirical_ecr[alg_name] = np.mean(cr_matrix, axis=0)
 
-    return time_grid, fitness_levels, profiles, empirical_ecr, profile_ecr
+    return time_grid, fitness_levels, inv_profiles, empirical_ecr, profile_ecr

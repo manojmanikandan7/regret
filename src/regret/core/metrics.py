@@ -86,9 +86,7 @@ def simple_regret(solution_value: float, f_star: float) -> float:
     return f_star - solution_value
 
 
-def instantaneous_regret(
-    trajectory: Trajectory, f_star: float, use_best: bool = False
-) -> list[tuple[int, float]]:
+def instantaneous_regret(trajectory: Trajectory, f_star: float, use_best: bool = False) -> list[tuple[int, float]]:
     """Compute instantaneous regret series for a trajectory at each evaluation (time) point.
 
     Args:
@@ -104,9 +102,7 @@ def instantaneous_regret(
     return [(t, f_star - current_value) for t, current_value, _ in trajectory]
 
 
-def cumulative_regret(
-    trajectory: Trajectory, f_star: float, use_best: bool = False
-) -> list[tuple[int, float]]:
+def cumulative_regret(trajectory: Trajectory, f_star: float, use_best: bool = False) -> list[tuple[int, float]]:
     """Compute cumulative regret series for a trajectory.
     cumulative regret is the running sum of instantaneous regrets using a left-hold
     approximation over the evaluation grid. At each time point t, the
@@ -156,9 +152,7 @@ def ttfo(trajectory: Trajectory, f_star: float, tolerance: float = 1e-9) -> int 
     return None
 
 
-
-
-def runtime_profile_single_run(
+def inv_runtime_profile_single_run(
     trajectory: Trajectory,
     fitness_levels: np.ndarray,
 ) -> np.ndarray:
@@ -182,7 +176,7 @@ def runtime_profile_single_run(
     level_idx = 0
     n_levels = levels.size
     for t, _, best in trajectory:
-        while level_idx < n_levels and best >= levels[level_idx]:   # If best at t >= to a level k, record the t
+        while level_idx < n_levels and best >= levels[level_idx]:  # If best at t >= to a level k, record the t
             hitting_times[level_idx] = float(t)
             level_idx += 1
         if level_idx >= n_levels:
@@ -190,17 +184,17 @@ def runtime_profile_single_run(
     return hitting_times
 
 
-def compute_runtime_profile(
+def compute_inv_runtime_profile(
     trajectories: list[Trajectory],
     fitness_levels: np.ndarray,
     time_grid: np.ndarray,
 ) -> np.ndarray:
-    """Compute runtime profile: P(\\tau_v <= T) for all fitness levels and time points.
+    """Compute inverse runtime profile: P(\\tau_v <= T) for all fitness levels and time points.
 
     Args:
         trajectories: List of trajectories, one per independent run.
         fitness_levels: Sorted array of fitness thresholds (shape F,).
-        time_grid: Evaluation counts at which to evaluate the profile (shape T,).
+        time_grid: Evaluation counts at which to evaluate the inverse profile (shape T,).
 
     Returns:
         Array of shape (F, T) where element [i, j] is the fraction of runs
@@ -223,20 +217,20 @@ def compute_runtime_profile(
     # hitting_times[run, level] = first evaluation reaching that level (inf if not)
     hitting_times = np.full((n_runs, n_levels), np.inf)
     for r, traj in enumerate(trajectories):
-        hitting_times[r] = runtime_profile_single_run(traj, levels)
+        hitting_times[r] = inv_runtime_profile_single_run(traj, levels)
 
-    # profile[level, time] = fraction of runs where hitting_time <= time_grid[t]
+    # inverse profile[level, time] = fraction of runs where hitting_time <= time_grid[t]
     # Shape: (F, T)
     # Outer broadcast: (n_runs, n_levels, 1) <= (1, 1, n_times)
-    profile = np.mean(
+    inv_profile = np.mean(
         hitting_times[:, :, np.newaxis] <= times[np.newaxis, np.newaxis, :],
         axis=0,
     )  # shape (F, T)
-    return profile
+    return inv_profile
 
 
-def profile_to_expected_cumulative_regret(
-    profile: np.ndarray,
+def inv_profile_to_expected_cumulative_regret(
+    inv_profile: np.ndarray,
     fitness_levels: np.ndarray,
     time_grid: np.ndarray,
 ) -> np.ndarray:
@@ -247,32 +241,30 @@ def profile_to_expected_cumulative_regret(
     via integration over levels and time.
 
     Args:
-        profile: Runtime profile array of shape (F, T) from compute_runtime_profile.
+        inv_profile: Runtime inverse profile array of shape (F, T) from compute_inv_runtime_profile.
         fitness_levels: Fitness thresholds of shape (F,); used for level spacing weights.
         time_grid: Evaluation counts of shape (T,) corresponding to profile columns.
 
     Returns:
         Array of shape (T,) containing expected cumulative regret at each time point in time_grid.
     """
-    profile_arr = np.asarray(profile, dtype=float)
+    inv_profile_arr = np.asarray(inv_profile, dtype=float)
     levels = np.asarray(fitness_levels, dtype=float)
     times = np.asarray(time_grid, dtype=float)
 
-    if profile_arr.ndim != 2:
-        raise ValueError("profile must be a 2D array of shape (F, T).")
+    if inv_profile_arr.ndim != 2:
+        raise ValueError("(inverse) profile must be a 2D array of shape (F, T).")
     if levels.ndim != 1 or times.ndim != 1:
         raise ValueError("fitness_levels and time_grid must be 1D arrays.")
-    if profile_arr.shape != (levels.size, times.size):
-        raise ValueError(
-            "profile shape must match (len(fitness_levels), len(time_grid))."
-        )
+    if inv_profile_arr.shape != (levels.size, times.size):
+        raise ValueError("(inverse) profile shape must match (len(fitness_levels), len(time_grid)).")
     if levels.size and np.any(np.diff(levels) < 0):
         raise ValueError("fitness_levels must be sorted in non-decreasing order.")
     if times.size and np.any(np.diff(times) < 0):
         raise ValueError("time_grid must be sorted in non-decreasing order.")
 
-    # survival: P(t < \tau_v) = 1 - profile [profile: P(t >= \tau_v)]
-    survival = 1.0 - profile_arr  # (F, T)
+    # survival: P(\tau_v > t) = 1 - profile [profile: P(\tau_v <= t)]
+    profiles = 1.0 - inv_profile_arr  # (F, T)
 
     # Level spacing \delta(v) from origin to include first level weight.
     delta_v = np.diff(levels, prepend=0.0)  # (F,)
@@ -284,7 +276,7 @@ def profile_to_expected_cumulative_regret(
 
     # Weighted area under survival curve up to each T
     # cumulative sum of (survival * dt) along time axis (The Sum_{t=1}^T part)
-    area_per_level = np.cumsum(survival * dt[np.newaxis, :], axis=1)  # (F, T)
+    area_per_level = np.cumsum(profiles * dt[np.newaxis, :], axis=1)  # (F, T)
 
     # Sum over levels, weighted by \delta(v) (The Sum_{v=0}^f* part)
     # ecr = np.einsum("f,ft->t", delta_v, area_per_level)

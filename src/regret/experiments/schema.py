@@ -3,7 +3,6 @@ JSON Schema for experiment configuration files.
 
 Defines the structure and constraints for YAML experiment configs.
 """
-
 CONFIG_SCHEMA = {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -344,7 +343,7 @@ CONFIG_SCHEMA = {
                                 },
                                 "reference_algorithm": {
                                     "type": "string",
-                                    "description": "Reference algorithm for pairwise tests. If omitted and pairwise annotation is enabled, the best mean-regret algorithm at the selected budget is used",
+                                    "description": "Reference algorithm for pairwise tests. If omitted and pairwise annotation is enabled, the best mean-regret algorithm at the selected budget is used", 
                                 },
                                 "paired_runs": {
                                     "type": "boolean",
@@ -673,32 +672,32 @@ CONFIG_SCHEMA = {
                                 },
                             },
                         },
-                        "runtime_profile_surface": {
+                        "inverse_runtime_profile_surface": {
                             "type": "object",
                             "properties": {
                                 "enabled": {
                                     "type": "boolean",
                                     "default": True,
-                                    "description": "Enable per-algorithm runtime profile surface plot (default: true)",
+                                    "description": "Enable per-algorithm inverse runtime profile surface plot (default: true)",
                                 },
                                 "filename": {
                                     "type": "string",
-                                    "default": "runtime_profile_surface_{algorithm}.pdf",
+                                    "default": "inverse_runtime_profile_surface_{algorithm}.pdf",
                                     "description": "Include `{algorithm}` as a placeholder in the filename",
                                 },
                             },
                         },
-                        "runtime_profile_curves": {
+                        "inverse_runtime_profile_curves": {
                             "type": "object",
                             "properties": {
                                 "enabled": {
                                     "type": "boolean",
                                     "default": True,
-                                    "description": "Enable runtime profile curve plot (default: true)",
+                                    "description": "Enable inverse runtime profile curve plot (default: true)",
                                 },
                                 "filename": {
                                     "type": "string",
-                                    "default": "runtime_profile_curves.pdf",
+                                    "default": "inverse_runtime_profile_curves.pdf",
                                 },
                             },
                         },
@@ -750,7 +749,33 @@ CONFIG_SCHEMA = {
                     }
                 }
             },
-        }
+        },
+        {
+            "if": {
+                "properties": {
+                    "suite": {
+                        "type": "object",
+                        "properties": {
+                            "profile": {"const": True},
+                        },
+                        "required": ["enabled"],
+                    }
+                }
+            },
+            "then": {
+                "properties": {
+                    "suite": {
+                        "type": "object",
+                        "properties": {
+                            "output": {
+                                "type": "object",
+                                "required": ["figures_root"],
+                            }
+                        },
+                    }
+                }
+            },
+        },
     ],
     "additionalProperties": False,
 }
