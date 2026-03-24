@@ -75,6 +75,14 @@ def test_validate_schema_accepts_valid_config() -> None:
     validate_schema(_valid_config())
 
 
+def test_validate_schema_accepts_suite_profile_flag() -> None:
+    """suite.profile should be accepted as an optional boolean toggle."""
+    config = _valid_config()
+    config["suite"]["profile"] = True
+
+    validate_schema(config)
+
+
 def test_validate_schema_allows_missing_figures_root_when_plotting_disabled() -> None:
     """figures_root is optional when plotting is disabled."""
     config = _valid_config()

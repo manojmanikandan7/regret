@@ -1,10 +1,11 @@
 """Tests for configurable budget-specific plotting behavior."""
 
+import csv
 from pathlib import Path
 
 import pytest
 
-from regret.experiments.utils import generate_plots
+from regret.experiments.utils import export_runtime_profile_data, generate_plots
 from regret.experiments.validation import (
     ValidationError,
     validate_schema,
@@ -297,3 +298,246 @@ def test_generate_plots_problem_budget_overrides_global_budget(
     assert calls["profile"]["budget"] == 10
     assert "distribution" in str(calls["boxplot"]["save_path"])
     assert "distribution" in str(calls["profile"]["save_path"])
+
+
+def test_generate_plots_does_not_write_runtime_profile_csv_when_enabled(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def _noop(*args, **kwargs):
+        return None
+
+    def _fake_profile_analysis(results, f_star, budget):
+        _ = (results, f_star, budget)
+        time_grid = [1.0, 2.0, 3.0]
+        fitness_levels = [1.0, 2.0]
+        profiles = {"RLS": [[0.5, 0.7, 1.0], [0.2, 0.6, 1.0]]}
+        empirical_ecr = {"RLS": [2.0, 1.0, 0.0]}
+        profile_ecr = {"RLS": [2.1, 1.1, 0.1]}
+        return time_grid, fitness_levels, profiles, empirical_ecr, profile_ecr
+
+    monkeypatch.setattr("regret.experiments.utils.plot_simple_regret_curves", _noop)
+    monkeypatch.setattr("regret.experiments.utils.plot_convergence_probability", _noop)
+    monkeypatch.setattr("regret.experiments.utils.plot_comparison_heatmap", _noop)
+    monkeypatch.setattr("regret.experiments.utils.plot_simple_regret_boxplots", _noop)
+    monkeypatch.setattr("regret.experiments.utils.plot_performance_profile", _noop)
+    monkeypatch.setattr("regret.experiments.utils.plot_history", _noop)
+    monkeypatch.setattr("regret.experiments.utils.plot_regret_curves", _noop)
+    monkeypatch.setattr("regret.experiments.utils.plot_ttfo_distribution", _noop)
+    monkeypatch.setattr("regret.experiments.utils.plot_runtime_profile_surface", _noop)
+    monkeypatch.setattr("regret.experiments.utils.plot_runtime_profile_curves", _noop)
+    monkeypatch.setattr("regret.experiments.utils.plot_cr_profile_verification", _noop)
+    monkeypatch.setattr(
+        "regret.analysis.profiles.run_profile_analysis", _fake_profile_analysis
+    )
+
+    results = {
+        ("RLS", 10): [
+            {
+                "regret": 0.5,
+                "trajectory": [
+                    (1, 1.0, 1.0),
+                    (10, 2.0, 2.0),
+                ],
+            }
+        ]
+    }
+
+    generate_plots(
+        suite_name="suite",
+        problem_name="OneMax",
+        n=8,
+        f_star=2.0,
+        results=results,
+        budget_for_plots=10,
+        output_dir=tmp_path,
+        plotting_config={
+            "layout": {
+                "per_problem_dir": True,
+                "include_n_subdir": True,
+                "structure": {
+                    "aggregate": "aggregate",
+                    "history": "history",
+                    "distribution": "distribution",
+                    "profile": "profiles",
+                },
+            },
+            "plots": {
+                "regret_boxplots": {"enabled": False},
+                "performance_profile": {"enabled": False},
+                "history_current": {"enabled": False},
+                "history_best": {"enabled": False},
+                "regret_instantaneous": {"enabled": False},
+                "regret_cumulative": {"enabled": False},
+                "regret_instantaneous_best": {"enabled": False},
+                "regret_cumulative_best": {"enabled": False},
+                "ttfo_distribution": {"enabled": False},
+                "regret_curves": {"enabled": False},
+                "convergence_probability": {"enabled": False},
+                "comparison_heatmap": {"enabled": False},
+                "runtime_profile_surface": {"enabled": False},
+                "runtime_profile_curves": {"enabled": False},
+                "cr_profile_verification": {"enabled": False},
+            },
+        },
+    )
+
+    csv_path = (
+        tmp_path / "suite" / "onemax" / "n8" / "profiles" / "cr_profile_data_rls.csv"
+    )
+    assert not csv_path.exists()
+
+
+def test_export_runtime_profile_csv_writes_to_raw_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def _fake_profile_analysis(results, f_star, budget):
+        _ = (results, f_star, budget)
+        time_grid = [1.0, 2.0, 3.0]
+        fitness_levels = [1.0, 2.0]
+        profiles = {"RLS": [[0.5, 0.7, 1.0], [0.2, 0.6, 1.0]]}
+        empirical_ecr = {"RLS": [2.0, 1.0, 0.0]}
+        profile_ecr = {"RLS": [2.1, 1.1, 0.1]}
+        return time_grid, fitness_levels, profiles, empirical_ecr, profile_ecr
+
+    monkeypatch.setattr(
+        "regret.analysis.profiles.run_profile_analysis", _fake_profile_analysis
+    )
+
+    results = {
+        ("RLS", 10): [
+            {
+                "regret": 0.5,
+                "trajectory": [
+                    (1, 1.0, 1.0),
+                    (10, 2.0, 2.0),
+                ],
+            }
+        ]
+    }
+
+    export_runtime_profile_data(
+        suite_name="suite",
+        problem_name="OneMax",
+        n=8,
+        f_star=2.0,
+        results=results,
+        budget_for_plots=10,
+        plotting_config={
+            "layout": {
+                "per_problem_dir": True,
+                "include_n_subdir": True,
+                "structure": {
+                    "profile": "profiles",
+                },
+            }
+        },
+        raw_output_dir=tmp_path,
+    )
+
+    csv_path = (
+        tmp_path / "suite" / "onemax" / "n8" / "profiles" / "cr_profile_data_rls.csv"
+    )
+    assert csv_path.exists()
+
+    with csv_path.open("r", encoding="utf-8", newline="") as f:
+        rows = list(csv.reader(f))
+
+    assert rows[0] == [
+        "evaluation",
+        "expected_cumulative_regret",
+        "mean_cumulative_regret",
+    ]
+    assert rows[1] == ["1.0", "2.1", "2.0"]
+    assert rows[-1] == ["3.0", "0.1", "0.0"]
+
+
+def test_export_runtime_profile_csv_plots_when_figures_dir_is_provided(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: dict[str, str] = {}
+
+    def _fake_profile_analysis(results, f_star, budget):
+        _ = (results, f_star, budget)
+        time_grid = [1.0, 2.0, 3.0]
+        fitness_levels = [1.0, 2.0]
+        profiles = {"RLS": [[0.5, 0.7, 1.0], [0.2, 0.6, 1.0]]}
+        empirical_ecr = {"RLS": [2.0, 1.0, 0.0]}
+        profile_ecr = {"RLS": [2.1, 1.1, 0.1]}
+        return time_grid, fitness_levels, profiles, empirical_ecr, profile_ecr
+
+    def _record_surface(*, save_path, **kwargs):
+        _ = kwargs
+        calls["surface"] = save_path
+
+    def _record_curves(*, save_path, **kwargs):
+        _ = kwargs
+        calls["curves"] = save_path
+
+    def _record_verification(*, save_path, **kwargs):
+        _ = kwargs
+        calls["verification"] = save_path
+
+    monkeypatch.setattr(
+        "regret.analysis.profiles.run_profile_analysis", _fake_profile_analysis
+    )
+    monkeypatch.setattr(
+        "regret.experiments.utils.plot_runtime_profile_surface", _record_surface
+    )
+    monkeypatch.setattr(
+        "regret.experiments.utils.plot_runtime_profile_curves", _record_curves
+    )
+    monkeypatch.setattr(
+        "regret.experiments.utils.plot_cr_profile_verification", _record_verification
+    )
+
+    results = {
+        ("RLS", 10): [
+            {
+                "regret": 0.5,
+                "trajectory": [
+                    (1, 1.0, 1.0),
+                    (10, 2.0, 2.0),
+                ],
+            }
+        ]
+    }
+
+    export_runtime_profile_data(
+        suite_name="suite",
+        problem_name="OneMax",
+        n=8,
+        f_star=2.0,
+        results=results,
+        budget_for_plots=10,
+        plotting_config={
+            "layout": {
+                "per_problem_dir": True,
+                "include_n_subdir": True,
+                "structure": {
+                    "profile": "profiles",
+                },
+            },
+            "plots": {
+                "runtime_profile_surface": {"enabled": True},
+                "runtime_profile_curves": {"enabled": True},
+                "cr_profile_verification": {"enabled": True},
+            },
+        },
+        raw_output_dir=tmp_path / "raw",
+        figures_output_dir=tmp_path / "figures",
+    )
+
+    assert "figures/suite/onemax/n8/profiles" in calls["surface"]
+    assert "figures/suite/onemax/n8/profiles" in calls["curves"]
+    assert "figures/suite/onemax/n8/profiles" in calls["verification"]
+
+    csv_path = (
+        tmp_path
+        / "raw"
+        / "suite"
+        / "onemax"
+        / "n8"
+        / "profiles"
+        / "cr_profile_data_rls.csv"
+    )
+    assert csv_path.exists()

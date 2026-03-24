@@ -149,9 +149,13 @@ class TestMuPlusLambdaEA:
         )
         ea.reset()
         evals_before = ea.evaluations
+        history_before = len(ea.history)
         ea.step()
+
         assert ea.evaluations == evals_before + ea.lmbda
-        assert len(ea.history) == 2
+        # (μ+λ)-EA records each offspring evaluation during a generation.
+        assert len(ea.history) == history_before + ea.lmbda
+        assert ea.history[-1][0] == ea.evaluations
 
 
 class TestSimulatedAnnealing:
@@ -218,6 +222,28 @@ class TestAlgorithmIntegration:
     """Integration tests for algorithms."""
 
     @pytest.mark.parametrize(
+        "AlgorithmClass,kwargs,steps",
+        [
+            (RLS, {}, 7),
+            (OnePlusOneEA, {"mutation_rate": 0.1}, 7),
+            (SimulatedAnnealing, {"T_func": LogarithmicCooling(d=2.0)}, 7),
+        ],
+    )
+    def test_history_evaluations_alignment(
+        self, simple_problem, AlgorithmClass, kwargs, steps
+    ):
+        """History timestamps should stay aligned with evaluation counts."""
+        algo = AlgorithmClass(problem=simple_problem, seed=123, **kwargs)
+        algo.reset()
+
+        for _ in range(steps):
+            algo.step()
+
+        eval_points = [t for t, _, _ in algo.history]
+        assert eval_points == sorted(eval_points)
+        assert eval_points[-1] == algo.evaluations
+
+    @pytest.mark.parametrize(
         "AlgorithmClass,kwargs",
         [
             (RLS, {"problem": None}),
@@ -266,3 +292,94 @@ class TestAlgorithmIntegration:
             assert final_best >= initial_best
             assert final_best == history_best[-1]
             assert final_best <= onemax.get_optimum_value()
+
+    def test_algorithm_run_respects_budget(self, simple_problem):
+        """Algorithm.run(budget) should respect evaluation budget exactly."""
+        for budget in [1, 5, 10, 50, 100]:
+            rls = RLS(problem=simple_problem, seed=42)
+            best_value, best_solution = rls.run(budget)
+            
+            # Budget constraint: evaluations recorded includes the reset evaluation
+            assert rls.evaluations == budget
+            assert len(rls.history) == budget
+
+    def test_algorithm_run_returns_best_solution(self, simple_problem):
+        """Algorithm.run() should return best_value and best_solution found."""
+        rls = RLS(problem=simple_problem, seed=7)
+        best_value, best_solution = rls.run(budget=50)
+        
+        # Return values should be the tracked best
+        assert best_value == rls.best_value
+        assert best_solution is rls.best_solution
+        
+        # best_solution should evaluate to best_value
+        if best_solution is not None:
+            eval_value = simple_problem.evaluate(best_solution)
+            assert abs(eval_value - best_value) < 1e-9
+
+    def test_algorithm_run_resets_history(self, simple_problem):
+        """Algorithm.run() should reset history and start fresh."""
+        rls = RLS(problem=simple_problem, seed=99)
+        
+        # First run
+        rls.run(budget=20)
+        first_evaluations = rls.evaluations
+        
+        # Second run should reset
+        rls.run(budget=30)
+        second_evaluations = rls.evaluations
+        
+        # Should not accumulate - second run resets
+        assert second_evaluations == 30
+        assert rls.evaluations == second_evaluations
+
+    def test_algorithm_run_reproducibility(self, simple_problem):
+        """Same seed should produce identical results across multiple runs."""
+        seed = 123
+        budget = 40
+        
+        rls1 = RLS(problem=simple_problem, seed=seed)
+        best_val1, best_sol1 = rls1.run(budget=budget)
+        history1 = list(rls1.history)
+        
+        rls2 = RLS(problem=simple_problem, seed=seed)
+        best_val2, best_sol2 = rls2.run(budget=budget)
+        history2 = list(rls2.history)
+        
+        assert best_val1 == best_val2
+        assert np.array_equal(best_sol1, best_sol2)
+        assert history1 == history2
+
+    @pytest.mark.parametrize(
+        "AlgorithmClass,kwargs",
+        [
+            (RLS, {}),
+            (OnePlusOneEA, {"mutation_rate": 0.1}),
+            (SimulatedAnnealing, {"T_func": LogarithmicCooling(d=2.0)}),
+        ],
+    )
+    def test_algorithm_run_budget_constraint(
+        self, simple_problem, AlgorithmClass, kwargs
+    ):
+        """All algorithms should respect budget constraint."""
+        budget = 25
+        alg = AlgorithmClass(problem=simple_problem, seed=42, **kwargs)
+        best_value, best_solution = alg.run(budget)
+        
+        assert alg.evaluations == budget
+        assert len(alg.history) == budget
+        assert best_value <= simple_problem.get_optimum_value()
+
+    def test_algorithm_run_best_solution_matches_value(self, simple_problem):
+        """best_solution should always achieve best_value on evaluation."""
+        rls = RLS(problem=simple_problem, seed=55)
+        best_value, best_solution = rls.run(budget=60)
+        
+        if best_solution is not None:
+            # Evaluate the solution and verify it matches
+            solution_eval = simple_problem.evaluate(best_solution)
+            assert solution_eval == best_value
+            
+            # Also verify this value is in history
+            history_best_values = [best for _, _, best in rls.history]
+            assert best_value in history_best_values

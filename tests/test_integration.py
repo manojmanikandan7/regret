@@ -126,10 +126,10 @@ class TestBitflipOperations:
         assert [t for t, _, _ in rls.history] == list(range(1, n_steps + 2))
 
 
-class InstantaneousRegretTests:
+class TestInstantaneousRegret:
     """Integration checks related to optimum detection in trajectories."""
 
-    def best_value_regret_non_increasing(self):
+    def test_best_value_regret_non_increasing(self):
         """Best-value regret should be non-increasing over time."""
         problem = OneMax(n=8)
         rls = RLS(problem=problem, seed=13)
@@ -145,7 +145,7 @@ class InstantaneousRegretTests:
         values = [r for _, r in best_regrets]
         assert all(values[i] >= values[i + 1] for i in range(len(values) - 1))
 
-    def best_value_regret_zero_optimum(self):
+    def test_best_value_regret_zero_optimum(self):
         """When optimum is reached, best regret should become zero."""
         problem = OneMax(n=6)
         rls = RLS(problem=problem, seed=29)

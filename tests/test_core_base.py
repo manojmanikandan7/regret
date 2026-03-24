@@ -85,3 +85,67 @@ class TestProblemEvaluation:
         result1 = simple_problem.evaluate(random_bitstring)
         result2 = simple_problem.evaluate(random_bitstring)
         assert result1 == result2
+
+
+class CountingAlgorithm(Algorithm):
+    """Minimal concrete algorithm for base-class lifecycle tests."""
+
+    def reset(self):
+        super().reset()
+        self.current_solution = np.zeros(self.problem.n, dtype=int)
+        self.current_value = self.problem.evaluate(self.current_solution)
+        self.evaluations = 1
+        self.best_solution = self.current_solution.copy()
+        self.best_value = self.current_value
+        self._record_history(self.current_value)
+
+    def step(self):
+        if self.evaluations >= self.problem.n:
+            self._record_history(self.current_value)
+            return
+
+        self.current_solution[self.evaluations] = 1
+        self.current_value = self.problem.evaluate(self.current_solution)
+        self.evaluations += 1
+
+        if self.current_value > self.best_value:
+            self.best_value = self.current_value
+            self.best_solution = self.current_solution.copy()
+
+        self._record_history(self.current_value)
+
+
+class TestAlgorithmRunLifecycle:
+    """Test run() semantics for a concrete Algorithm subclass."""
+
+    def test_run_respects_budget(self, simple_problem):
+        """run() should stop exactly at the provided evaluation budget."""
+        alg = CountingAlgorithm(problem=simple_problem, seed=11)
+        best_value, best_solution = alg.run(budget=6)
+
+        assert alg.evaluations == 6
+        assert len(alg.history) == 6
+        assert best_value == alg.best_value
+        assert np.array_equal(best_solution, alg.best_solution)
+
+    def test_best_solution_matches_best_value_after_run(self, simple_problem):
+        """best_solution should evaluate exactly to best_value after run()."""
+        alg = CountingAlgorithm(problem=simple_problem, seed=19)
+        best_value, best_solution = alg.run(budget=8)
+
+        assert best_solution is not None
+        assert simple_problem.evaluate(best_solution) == best_value
+
+    def test_run_resets_state_between_calls(self, simple_problem):
+        """A second run() call should start from a clean state via reset()."""
+        alg = CountingAlgorithm(problem=simple_problem, seed=23)
+
+        alg.run(budget=4)
+        first_history = list(alg.history)
+
+        alg.run(budget=7)
+
+        assert alg.evaluations == 7
+        assert len(alg.history) == 7
+        assert alg.history != first_history
+        assert alg.history[0][0] == 1
