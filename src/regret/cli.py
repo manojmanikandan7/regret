@@ -73,9 +73,7 @@ def _plan_single(config_path: Path) -> bool:
         print(f"Figures out:   {plan['output_figures_root']}")
         print(f"Runs/combo:    {plan['runs_per_combo']}")
         print(f"Budgets:       {plan['budgets']}")
-        print(
-            f"Budget span:   min={plan['budget_min']}, max={plan['budget_max']}, count={plan['budget_count']}"
-        )
+        print(f"Budget span:   min={plan['budget_min']}, max={plan['budget_max']}, count={plan['budget_count']}")
 
         print(f"\nProblems ({len(plan['problem_details'])}):")
         for problem in plan["problem_details"]:
