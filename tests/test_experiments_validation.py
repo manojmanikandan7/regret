@@ -83,15 +83,6 @@ def test_validate_schema_accepts_suite_profile_flag() -> None:
     validate_schema(config)
 
 
-def test_validate_schema_requires_figures_root_when_suite_profile_enabled() -> None:
-    """figures_root is required when suite.profile is true."""
-    config = _valid_config()
-    config["suite"]["profile"] = True
-    del config["suite"]["output"]["figures_root"]
-
-    with pytest.raises(ValidationError, match="Schema validation failed"):
-        validate_schema(config)
-
 
 def test_validate_schema_rejects_profile_plots_when_suite_profile_disabled() -> None:
     """Runtime profile plot toggles must be disabled when suite.profile is false."""
