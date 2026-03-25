@@ -1,104 +1,86 @@
 suite:
-  name: "01_baseline"
+  name: "10_barrier_comparison"
   description: >
-    Algorithm-family comparison across pseudo-boolean problems of increasing
-    difficulty. 
-    - Research question: 
-      - At which budget does each algorithm family (local search,
-        evolutionary, simulated annealing) overtake the others, and
-      - Does the regret trajectory reveal the crossover point before TTFO does?
+    - Directly compares three structural barrier archetypes at equal nominal
+      width k=5 (n=100): 
+      - Jump-k5 (gap — fitness is penalised in [n-k+1,n-1],
+        so the gradient reverses near the top), 
+      - Trap-k5 (deceptive — the fitness
+        gradient everywhere points away from the global optimum toward ones=0), and
+      - Plateau-k5 (neutral — fitness is flat in [n-k,n-1], no penalty but
+        no gradient signal). 
+    - The research question is whether cumulative regret reveals the structural
+      difference: 
+      - Trap should accumulate regret at high rate from step 1 (no gradient 
+        benefit before the barrier);
+      - Jump should show low cumulative regret during hill-climbing then 
+        a sharp inflection;
+      - Plateau should behave like Jump but with a slightly earlier inflection
+       (no fitness penalty during the neutral walk). 
     - Notes:
-      - BinVal is retained: its exponential fitness structure (optimum=2^50-1)
-        produces large fitness gaps and very fast convergence for all algorithms,
-        providing a qualitative contrast with the other problems; 
-        - CR_profile_verification is disabled suite-wide because BinVal violates 
-          the integer-level-increment assumption of the layer-cake sum. 
-        - Profile surface and profile curve plots are also disabled, 
-          this suite's question is algorithm-family comparison, and profile
-          analysis is the primary output of suites 05, 08, and 12; adding them here would
-          generate many output files without serving the suite's hypothesis.
-      - SA reduced to a single representative schedule (SA-Log-d_2.0) to keep the
-        algorithm-family distinction clean; 
-      - Budget ceiling raised to 10000 to include the regime where LeadingOnes and 
-        Jump-3 actually converge; 
-      - budget_for_plots set per-problem relative to E[TTFO].
-
-
-  runs: 50
+      - All three have E[TTFO]=\theta(n^k) at rate 1/n, so TTFO
+        histograms cannot distinguish them when P(opt)~~0 within budget.
+      - Four mutation rates are applied uniformly to separate rate sensitivity 
+        from structural effects.
+      - Budget 50000 captures plateau/valley crossing for k=5 at moderate rates.
+  runs: 30
   mode: "full"
   parallel: true
   profile: false
-  budgets: [200, 500, 1000, 2000, 5000, 10000]
+  budgets: [1000, 5000, 10000, 25000, 50000]
   output:
     raw_root: "results/raw"
     figures_root: "results/figures"
 
 problems:
-  - name: "OneMax"
-    class: "OneMax"
-    budget_for_plots: 2000
-    params:
-      n: 100
-
-  - name: "LeadingOnes"
-    class: "LeadingOnes"
-    budget_for_plots: 10000
-    params:
-      n: 100
-
-  - name: "TwoMax"
-    class: "TwoMax"
-    budget_for_plots: 2000
-    params:
-      n: 100
-
-  - name: "Jump-3"
+  - name: "Jump-k5"
     class: "Jump"
-    budget_for_plots: 10000
+    budget_for_plots: 50000
     params:
       n: 100
-      k: 3
+      k: 5
 
-  - name: "Trap-10"
+  - name: "Trap-k5"
     class: "Trap"
-    budget_for_plots: 10000
+    budget_for_plots: 50000
     params:
       n: 100
-      k: 10
+      k: 5
 
-  - name: "BinVal"
-    class: "BinVal"
-    budget_for_plots: 500
+  - name: "Plateau-k5"
+    class: "Plateau"
+    budget_for_plots: 50000
     params:
-      n: 50
+      n: 100
+      k: 5
 
 algorithms:
-  - name: "RLS"
-    class: "RLS"
-    args:
-      defaults: {}
-      by_problem: {}
-
-  - name: "RLSExploration"
-    class: "RLSExploration"
-    args:
-      defaults: {}
-      by_problem: {}
-
-  - name: "(1+1)-EA"
+  - name: "(1+1)-EA-mu_0.5-by-n"
     class: "OnePlusOneEA"
     args:
-      defaults: {}
+      defaults:
+        mutation_rate: 0.005
       by_problem: {}
 
-  - name: "SA-Log-d_2.0"
-    class: "SimulatedAnnealing"
+  - name: "(1+1)-EA-mu_1-by-n"
+    class: "OnePlusOneEA"
     args:
       defaults:
-        T_func:
-          type: "logarithmic"
-          params:
-            d: 2.0
+        mutation_rate: 0.01
+      by_problem: {}
+
+  - name: "(1+1)-EA-mu_2-by-n"
+    class: "OnePlusOneEA"
+    args:
+      defaults:
+        mutation_rate: 0.02
+      by_problem: {}
+
+  - name: "(1+1)-EA-mu_5-by-n"
+    class: "OnePlusOneEA"
+    args:
+      defaults:
+        mutation_rate: 0.05
       by_problem: {}
 
 plotting:
@@ -110,7 +92,6 @@ plotting:
       aggregate: "aggregate"
       history: "history"
       distribution: "distributions"
-      profile: "profiles"
   titles:
     include_problem_name: true
     include_problem_size: true

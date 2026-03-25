@@ -1,34 +1,31 @@
 suite:
-  name: "01_baseline"
+  name: "11_sa_cooling_diagnostics"
   description: >
-    Algorithm-family comparison across pseudo-boolean problems of increasing
-    difficulty. 
-    - Research question: 
-      - At which budget does each algorithm family (local search,
-        evolutionary, simulated annealing) overtake the others, and
-      - Does the regret trajectory reveal the crossover point before TTFO does?
-    - Notes:
-      - BinVal is retained: its exponential fitness structure (optimum=2^50-1)
-        produces large fitness gaps and very fast convergence for all algorithms,
-        providing a qualitative contrast with the other problems; 
-        - CR_profile_verification is disabled suite-wide because BinVal violates 
-          the integer-level-increment assumption of the layer-cake sum. 
-        - Profile surface and profile curve plots are also disabled, 
-          this suite's question is algorithm-family comparison, and profile
-          analysis is the primary output of suites 05, 08, and 12; adding them here would
-          generate many output files without serving the suite's hypothesis.
-      - SA reduced to a single representative schedule (SA-Log-d_2.0) to keep the
-        algorithm-family distinction clean; 
-      - Budget ceiling raised to 10000 to include the regime where LeadingOnes and 
-        Jump-3 actually converge; 
-      - budget_for_plots set per-problem relative to E[TTFO].
+    Tests whether the SA cooling schedule leaves a detectable signature in the
+    instantaneous regret trajectory.
+    - The hypothesis is that fast-cooling schedules will show an
+      instantaneous regret plateau whose onset time matches the temperature
+      collapse point, while slow logarithmic schedules will show a sustained
+      decline.
+    - On LeadingOnes the difference should be larger because local
+      optima are harder to escape and temperature matters more.
 
+    - Logarithmic cooling T(t)=d/log(t+1) is theoretically motivated:
+      it maintains sufficient acceptance probability throughout the run
+      and is the only schedule proven to reach the global optimum in polynomial
+      expected time on certain problem classes.
+    - Linear and exponential schedules cool to zero and reduce SA to a
+      stochastic hill-climber after a finite prefix.
 
+    - Six logarithmic variants (d=0.5,1,2,4,8,16) span from degenerate-greedy
+      to extremely slow cooling.
+      RLS is included as the T=0 reference; any SA variant that underperforms RLS is misconfigured or
+      over-cooled.
   runs: 50
   mode: "full"
   parallel: true
   profile: false
-  budgets: [200, 500, 1000, 2000, 5000, 10000]
+  budgets: [500, 1000, 2000, 5000, 10000]
   output:
     raw_root: "results/raw"
     figures_root: "results/figures"
@@ -42,35 +39,9 @@ problems:
 
   - name: "LeadingOnes"
     class: "LeadingOnes"
-    budget_for_plots: 10000
+    budget_for_plots: 5000
     params:
       n: 100
-
-  - name: "TwoMax"
-    class: "TwoMax"
-    budget_for_plots: 2000
-    params:
-      n: 100
-
-  - name: "Jump-3"
-    class: "Jump"
-    budget_for_plots: 10000
-    params:
-      n: 100
-      k: 3
-
-  - name: "Trap-10"
-    class: "Trap"
-    budget_for_plots: 10000
-    params:
-      n: 100
-      k: 10
-
-  - name: "BinVal"
-    class: "BinVal"
-    budget_for_plots: 500
-    params:
-      n: 50
 
 algorithms:
   - name: "RLS"
@@ -79,16 +50,24 @@ algorithms:
       defaults: {}
       by_problem: {}
 
-  - name: "RLSExploration"
-    class: "RLSExploration"
+  - name: "SA-Log-d_0.5"
+    class: "SimulatedAnnealing"
     args:
-      defaults: {}
+      defaults:
+        T_func:
+          type: "logarithmic"
+          params:
+            d: 0.5
       by_problem: {}
 
-  - name: "(1+1)-EA"
-    class: "OnePlusOneEA"
+  - name: "SA-Log-d_1.0"
+    class: "SimulatedAnnealing"
     args:
-      defaults: {}
+      defaults:
+        T_func:
+          type: "logarithmic"
+          params:
+            d: 1.0
       by_problem: {}
 
   - name: "SA-Log-d_2.0"
@@ -101,6 +80,54 @@ algorithms:
             d: 2.0
       by_problem: {}
 
+  - name: "SA-Log-d_4.0"
+    class: "SimulatedAnnealing"
+    args:
+      defaults:
+        T_func:
+          type: "logarithmic"
+          params:
+            d: 4.0
+      by_problem: {}
+
+  - name: "SA-Log-d_8.0"
+    class: "SimulatedAnnealing"
+    args:
+      defaults:
+        T_func:
+          type: "logarithmic"
+          params:
+            d: 8.0
+      by_problem: {}
+
+  - name: "SA-Log-d_16.0"
+    class: "SimulatedAnnealing"
+    args:
+      defaults:
+        T_func:
+          type: "logarithmic"
+          params:
+            d: 16.0
+      by_problem: {}
+
+  - name: "SA-Lin"
+    class: "SimulatedAnnealing"
+    args:
+      defaults:
+        T_func:
+          type: "linear"
+          params: {}
+      by_problem: {}
+
+  - name: "SA-Exp"
+    class: "SimulatedAnnealing"
+    args:
+      defaults:
+        T_func:
+          type: "exponential"
+          params: {}
+      by_problem: {}
+
 plotting:
   enabled: true
   layout:
@@ -110,7 +137,6 @@ plotting:
       aggregate: "aggregate"
       history: "history"
       distribution: "distributions"
-      profile: "profiles"
   titles:
     include_problem_name: true
     include_problem_size: true
@@ -171,13 +197,13 @@ plotting:
       show_ttfo_markers: true
 
     regret_instantaneous_best:
-      enabled: true
+      enabled: false
       filename: "history_regret_instantaneous_best.pdf"
       series: "instantaneous"
       use_best: true
       log_x: false
       log_y: true
-      show_ttfo_markers: true
+      show_ttfo_markers: false
 
     regret_cumulative_best:
       enabled: true

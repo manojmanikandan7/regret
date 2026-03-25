@@ -1,86 +1,80 @@
 suite:
-  name: "01_baseline"
+  name: "12_nk_saturation"
   description: >
-    Algorithm-family comparison across pseudo-boolean problems of increasing
-    difficulty. 
-    - Research question: 
-      - At which budget does each algorithm family (local search,
-        evolutionary, simulated annealing) overtake the others, and
-      - Does the regret trajectory reveal the crossover point before TTFO does?
-    - Notes:
-      - BinVal is retained: its exponential fitness structure (optimum=2^50-1)
-        produces large fitness gaps and very fast convergence for all algorithms,
-        providing a qualitative contrast with the other problems; 
-        - CR_profile_verification is disabled suite-wide because BinVal violates 
-          the integer-level-increment assumption of the layer-cake sum. 
-        - Profile surface and profile curve plots are also disabled, 
-          this suite's question is algorithm-family comparison, and profile
-          analysis is the primary output of suites 05, 08, and 12; adding them here would
-          generate many output files without serving the suite's hypothesis.
-      - SA reduced to a single representative schedule (SA-Log-d_2.0) to keep the
-        algorithm-family distinction clean; 
-      - Budget ceiling raised to 10000 to include the regime where LeadingOnes and 
-        Jump-3 actually converge; 
-      - budget_for_plots set per-problem relative to E[TTFO].
-
-
-  runs: 50
+    Investigates regret saturation on the NK landscape as epistasis k increases
+    from fully separable (k=0, independent bits) to near-random (k=8, dense
+    pairwise dependencies).
+    - As k increases, local optima proliferate and gradient-following algorithms
+      converge to suboptimal solutions.
+    - This saturation appears in instantaneous regret as a permanent non-zero floor:
+      the algorithm finds a local optimum and cannot escape, accumulating linear
+      cumulative regret indefinitely.
+    - The inverse runtime profile surface P(\tau_v ≤ T)
+      captures this as a truncated front - it rises to some v_local < f* and
+      stalls, regardless of budget.
+    - Three algorithms span the exploration-
+      - exploitation spectrum: RLS (zero-temperature hill-climber, saturates
+    earliest),
+      - (1+1)-EA (mild exploration via multi-bit flips), and
+      - SA-Log with d=4 (sustained acceptance of worsening moves).
+        SA-Log uses a larger d on high-epistasis problems via by_problem overrides
+        to compensate for higher expected energy barriers.
+    - n=20 is required by NKLandscape because
+      get_optimum_value() runs exhaustive 2^20 search at init. Budget 50000
+      reveals the asymptotic regret floor and runtime profile saturation.
+  runs: 25
   mode: "full"
   parallel: true
-  profile: false
-  budgets: [200, 500, 1000, 2000, 5000, 10000]
+  profile: true
+  budgets: [500, 2000, 10000, 25000, 50000]
   output:
     raw_root: "results/raw"
     figures_root: "results/figures"
 
 problems:
-  - name: "OneMax"
-    class: "OneMax"
-    budget_for_plots: 2000
-    params:
-      n: 100
-
-  - name: "LeadingOnes"
-    class: "LeadingOnes"
+  - name: "NK-k0"
+    class: "NKLandscape"
     budget_for_plots: 10000
     params:
-      n: 100
+      n: 20
+      k: 0
+      seed: 42
 
-  - name: "TwoMax"
-    class: "TwoMax"
-    budget_for_plots: 2000
+  - name: "NK-k2"
+    class: "NKLandscape"
+    budget_for_plots: 25000
     params:
-      n: 100
+      n: 20
+      k: 2
+      seed: 42
 
-  - name: "Jump-3"
-    class: "Jump"
-    budget_for_plots: 10000
+  - name: "NK-k4"
+    class: "NKLandscape"
+    budget_for_plots: 50000
     params:
-      n: 100
-      k: 3
+      n: 20
+      k: 4
+      seed: 42
 
-  - name: "Trap-10"
-    class: "Trap"
-    budget_for_plots: 10000
+  - name: "NK-k6"
+    class: "NKLandscape"
+    budget_for_plots: 50000
     params:
-      n: 100
-      k: 10
+      n: 20
+      k: 6
+      seed: 42
 
-  - name: "BinVal"
-    class: "BinVal"
-    budget_for_plots: 500
+  - name: "NK-k8"
+    class: "NKLandscape"
+    budget_for_plots: 50000
     params:
-      n: 50
+      n: 20
+      k: 8
+      seed: 42
 
 algorithms:
   - name: "RLS"
     class: "RLS"
-    args:
-      defaults: {}
-      by_problem: {}
-
-  - name: "RLSExploration"
-    class: "RLSExploration"
     args:
       defaults: {}
       by_problem: {}
@@ -91,15 +85,30 @@ algorithms:
       defaults: {}
       by_problem: {}
 
-  - name: "SA-Log-d_2.0"
+  - name: "SA-Log-d_4.0"
     class: "SimulatedAnnealing"
     args:
       defaults:
         T_func:
           type: "logarithmic"
           params:
-            d: 2.0
-      by_problem: {}
+            d: 4.0
+      by_problem:
+        NK-k4:
+          T_func:
+            type: "logarithmic"
+            params:
+              d: 8.0
+        NK-k6:
+          T_func:
+            type: "logarithmic"
+            params:
+              d: 8.0
+        NK-k8:
+          T_func:
+            type: "logarithmic"
+            params:
+              d: 12.0
 
 plotting:
   enabled: true
@@ -133,7 +142,7 @@ plotting:
       filename: "regret_boxplot_b{budget}.pdf"
 
     performance_profile:
-      enabled: true
+      enabled: false
       filename: "performance_profile_b{budget}.pdf"
 
     history_current:
@@ -193,11 +202,11 @@ plotting:
       filename: "history_ttfo_markers.pdf"
 
     inverse_runtime_profile_surface:
-      enabled: false
+      enabled: true
       filename: "inverse_runtime_profile_surface_{algorithm}.pdf"
 
     inverse_runtime_profile_curves:
-      enabled: false
+      enabled: true
       filename: "inverse_runtime_profile_curves.pdf"
 
     cr_profile_verification:

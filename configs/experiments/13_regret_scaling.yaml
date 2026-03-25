@@ -1,105 +1,72 @@
 suite:
-  name: "01_baseline"
+  name: "13_regret_scaling"
   description: >
-    Algorithm-family comparison across pseudo-boolean problems of increasing
-    difficulty. 
-    - Research question: 
-      - At which budget does each algorithm family (local search,
-        evolutionary, simulated annealing) overtake the others, and
-      - Does the regret trajectory reveal the crossover point before TTFO does?
-    - Notes:
-      - BinVal is retained: its exponential fitness structure (optimum=2^50-1)
-        produces large fitness gaps and very fast convergence for all algorithms,
-        providing a qualitative contrast with the other problems; 
-        - CR_profile_verification is disabled suite-wide because BinVal violates 
-          the integer-level-increment assumption of the layer-cake sum. 
-        - Profile surface and profile curve plots are also disabled, 
-          this suite's question is algorithm-family comparison, and profile
-          analysis is the primary output of suites 05, 08, and 12; adding them here would
-          generate many output files without serving the suite's hypothesis.
-      - SA reduced to a single representative schedule (SA-Log-d_2.0) to keep the
-        algorithm-family distinction clean; 
-      - Budget ceiling raised to 10000 to include the regime where LeadingOnes and 
-        Jump-3 actually converge; 
-      - budget_for_plots set per-problem relative to E[TTFO].
-
-
-  runs: 50
+    Tests whether cumulative regret scales with n as predicted by drift
+    analysis.
+    - For OneMax, the (1+1)-EA achieves E[TTFO]=\theta(n log n), which
+      implies E[CR(T)] at a fixed relative budget T=c.n.log(n) should scale as
+      \theta(n): before convergence, instantaneous regret decays from roughly n to 0
+      over an interval of length \theta(n log n), so the integral scales linearly
+      with n.
+    - Empirically this predicts that the log-log regret curve for n=2N
+      will be shifted rightward by log(2)~~0.69 relative to n=N, with the same
+      slope.
+    - Four sizes n=25,50,100,200 provide two doublings on each side of
+      the canonical n=100 baseline.
+    - Mutation rate is set per-problem to exactly 1/n via by_problem overrides.
+      budget_for_plots is calibrated to approximately 5.n.log2(n) for each n
+      so that the history plots capture the full pre- and post-convergence
+      dynamics.
+    - 60 runs give low-variance E[CR(T)] estimates for fitting the scaling exponent.
+  runs: 60
   mode: "full"
   parallel: true
   profile: false
-  budgets: [200, 500, 1000, 2000, 5000, 10000]
+  budgets: [100, 500, 1000, 2500, 5000, 10000]
   output:
     raw_root: "results/raw"
     figures_root: "results/figures"
 
 problems:
-  - name: "OneMax"
+  - name: "OneMax-n25"
     class: "OneMax"
-    budget_for_plots: 2000
+    budget_for_plots: 1000
     params:
-      n: 100
+      n: 25
 
-  - name: "LeadingOnes"
-    class: "LeadingOnes"
-    budget_for_plots: 10000
-    params:
-      n: 100
-
-  - name: "TwoMax"
-    class: "TwoMax"
-    budget_for_plots: 2000
-    params:
-      n: 100
-
-  - name: "Jump-3"
-    class: "Jump"
-    budget_for_plots: 10000
-    params:
-      n: 100
-      k: 3
-
-  - name: "Trap-10"
-    class: "Trap"
-    budget_for_plots: 10000
-    params:
-      n: 100
-      k: 10
-
-  - name: "BinVal"
-    class: "BinVal"
-    budget_for_plots: 500
+  - name: "OneMax-n50"
+    class: "OneMax"
+    budget_for_plots: 2500
     params:
       n: 50
 
+  - name: "OneMax-n100"
+    class: "OneMax"
+    budget_for_plots: 5000
+    params:
+      n: 100
+
+  - name: "OneMax-n200"
+    class: "OneMax"
+    budget_for_plots: 10000
+    params:
+      n: 200
+
 algorithms:
-  - name: "RLS"
-    class: "RLS"
-    args:
-      defaults: {}
-      by_problem: {}
-
-  - name: "RLSExploration"
-    class: "RLSExploration"
-    args:
-      defaults: {}
-      by_problem: {}
-
-  - name: "(1+1)-EA"
+  - name: "(1+1)-EA-mu_1-by-n"
     class: "OnePlusOneEA"
     args:
-      defaults: {}
-      by_problem: {}
-
-  - name: "SA-Log-d_2.0"
-    class: "SimulatedAnnealing"
-    args:
       defaults:
-        T_func:
-          type: "logarithmic"
-          params:
-            d: 2.0
-      by_problem: {}
+        mutation_rate: 0.01
+      by_problem:
+        OneMax-n25:
+          mutation_rate: 0.04
+        OneMax-n50:
+          mutation_rate: 0.02
+        OneMax-n100:
+          mutation_rate: 0.01
+        OneMax-n200:
+          mutation_rate: 0.005
 
 plotting:
   enabled: true
@@ -110,7 +77,6 @@ plotting:
       aggregate: "aggregate"
       history: "history"
       distribution: "distributions"
-      profile: "profiles"
   titles:
     include_problem_name: true
     include_problem_size: true
@@ -125,7 +91,7 @@ plotting:
       filename: "convergence_probability.pdf"
 
     comparison_heatmap:
-      enabled: true
+      enabled: false
       filename: "comparison_heatmap.pdf"
 
     regret_boxplots:
@@ -133,7 +99,7 @@ plotting:
       filename: "regret_boxplot_b{budget}.pdf"
 
     performance_profile:
-      enabled: true
+      enabled: false
       filename: "performance_profile_b{budget}.pdf"
 
     history_current:
@@ -171,13 +137,13 @@ plotting:
       show_ttfo_markers: true
 
     regret_instantaneous_best:
-      enabled: true
+      enabled: false
       filename: "history_regret_instantaneous_best.pdf"
       series: "instantaneous"
       use_best: true
       log_x: false
       log_y: true
-      show_ttfo_markers: true
+      show_ttfo_markers: false
 
     regret_cumulative_best:
       enabled: true

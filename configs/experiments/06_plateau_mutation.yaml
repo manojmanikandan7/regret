@@ -1,104 +1,95 @@
 suite:
-  name: "01_baseline"
+  name: "06_plateau_mutation"
   description: >
-    Algorithm-family comparison across pseudo-boolean problems of increasing
-    difficulty. 
-    - Research question: 
-      - At which budget does each algorithm family (local search,
-        evolutionary, simulated annealing) overtake the others, and
-      - Does the regret trajectory reveal the crossover point before TTFO does?
-    - Notes:
-      - BinVal is retained: its exponential fitness structure (optimum=2^50-1)
-        produces large fitness gaps and very fast convergence for all algorithms,
-        providing a qualitative contrast with the other problems; 
-        - CR_profile_verification is disabled suite-wide because BinVal violates 
-          the integer-level-increment assumption of the layer-cake sum. 
-        - Profile surface and profile curve plots are also disabled, 
-          this suite's question is algorithm-family comparison, and profile
-          analysis is the primary output of suites 05, 08, and 12; adding them here would
-          generate many output files without serving the suite's hypothesis.
-      - SA reduced to a single representative schedule (SA-Log-d_2.0) to keep the
-        algorithm-family distinction clean; 
-      - Budget ceiling raised to 10000 to include the regime where LeadingOnes and 
-        Jump-3 actually converge; 
-      - budget_for_plots set per-problem relative to E[TTFO].
+    Neutral fitness landscape study. 
 
+    - Research question: Given that Plateau-k and Jump-k have the same 
+      expected crossing time \delta(n^k) at rate 1/n,
+      do their cumulative regret trajectories differ in shape?
+      - The prediction is that Plateau accumulates regret at a lower initial 
+        rate than Jump (no fitness penalty during the neutral walk, so the 
+        pre-plateau hill-climbing phase is identical in shape) 
+        but after entering the neutral zone the slope should match.
+      - The comparison is only meaningful if the same algorithms
+        run on both problems; this suite uses the identical four mutation rates
+        from suite 05, and SA-Log-d_4.0 is added so that three algorithm classes
+        are represented: EA-varying-rate, and SA.
 
-  runs: 50
+    - Notes: 
+      - mu_3-by-n and mu_7-by-n removed: neither has
+        theoretical motivation and they produce curves between the already-tested
+        neighbours without testing a distinct hypothesis; 
+      - SA-Log-d_4.0 added as the third algorithm class; 
+      - Algorithm set now matches suite 04 and suite 05 for direct cross-suite 
+        comparison on identical k values.
+  runs: 30
   mode: "full"
   parallel: true
   profile: false
-  budgets: [200, 500, 1000, 2000, 5000, 10000]
+  budgets: [500, 1000, 2000, 5000, 10000, 20000]
   output:
     raw_root: "results/raw"
     figures_root: "results/figures"
 
 problems:
-  - name: "OneMax"
-    class: "OneMax"
-    budget_for_plots: 2000
+  - name: "Plateau-k2"
+    class: "Plateau"
+    budget_for_plots: 5000
     params:
       n: 100
+      k: 2
 
-  - name: "LeadingOnes"
-    class: "LeadingOnes"
+  - name: "Plateau-k5"
+    class: "Plateau"
     budget_for_plots: 10000
     params:
       n: 100
+      k: 5
 
-  - name: "TwoMax"
-    class: "TwoMax"
-    budget_for_plots: 2000
-    params:
-      n: 100
-
-  - name: "Jump-3"
-    class: "Jump"
-    budget_for_plots: 10000
-    params:
-      n: 100
-      k: 3
-
-  - name: "Trap-10"
-    class: "Trap"
-    budget_for_plots: 10000
+  - name: "Plateau-k10"
+    class: "Plateau"
+    budget_for_plots: 20000
     params:
       n: 100
       k: 10
 
-  - name: "BinVal"
-    class: "BinVal"
-    budget_for_plots: 500
+  - name: "Plateau-k20"
+    class: "Plateau"
+    budget_for_plots: 20000
     params:
-      n: 50
+      n: 100
+      k: 20
 
 algorithms:
-  - name: "RLS"
-    class: "RLS"
-    args:
-      defaults: {}
-      by_problem: {}
-
-  - name: "RLSExploration"
-    class: "RLSExploration"
-    args:
-      defaults: {}
-      by_problem: {}
-
-  - name: "(1+1)-EA"
+  - name: "(1+1)-EA-mu_1-by-n"
     class: "OnePlusOneEA"
     args:
-      defaults: {}
+      defaults:
+        mutation_rate: 0.01
       by_problem: {}
 
-  - name: "SA-Log-d_2.0"
+  - name: "(1+1)-EA-mu_2-by-n"
+    class: "OnePlusOneEA"
+    args:
+      defaults:
+        mutation_rate: 0.02
+      by_problem: {}
+
+  - name: "(1+1)-EA-mu_5-by-n"
+    class: "OnePlusOneEA"
+    args:
+      defaults:
+        mutation_rate: 0.05
+      by_problem: {}
+
+  - name: "SA-Log-d_4.0"
     class: "SimulatedAnnealing"
     args:
       defaults:
         T_func:
           type: "logarithmic"
           params:
-            d: 2.0
+            d: 4.0
       by_problem: {}
 
 plotting:
@@ -110,7 +101,6 @@ plotting:
       aggregate: "aggregate"
       history: "history"
       distribution: "distributions"
-      profile: "profiles"
   titles:
     include_problem_name: true
     include_problem_size: true

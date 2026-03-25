@@ -1,94 +1,86 @@
 suite:
   name: "02_extended"
-  description: "Extended exploratory benchmark - pseudo-boolean, combinatorial, and landscape problems"
-  runs: 30          # Reduced from 50; NK init is expensive, and 30 is sufficient for variance estimates
-  mode: "full"     
+  description: >
+    - Extended pseudo-boolean benchmark using only the four algorithm families
+      from the baseline. 
+    - Research question: does the relative ordering of
+      algorithm families (established on easy problems in suite 01) hold on
+      harder and structurally more complex problems?
+    - Notes:
+      - MuPlusLambdaEA variants removed. MuPlusLambdaEA records per-offspring history,
+        making instantaneous regret incomparable to single-individual algorithms on the same axis;  #TODO: Cause for another experiment
+      - SA d value standardised to 2.0 to match baseline; budget floor raised
+        from 100 to 500; 
+      - algorithms reduced to the same four families as suite 01
+        to make cross-suite comparison valid.
+  runs: 50
+  mode: "full"
   parallel: true
-  budgets: [100, 500, 1000, 5000, 10000]
+  profile: false
+  budgets: [500, 2000, 5000, 10000, 20000]
   output:
     raw_root: "results/raw"
     figures_root: "results/figures"
 
 problems:
-  # ── Pseudo-Boolean (carried from baseline) ────────────────────────────────
   - name: "OneMax"
     class: "OneMax"
+    budget_for_plots: 2000
     params:
       n: 100
 
   - name: "LeadingOnes"
     class: "LeadingOnes"
+    budget_for_plots: 10000
     params:
       n: 100
 
   - name: "TwoMax"
     class: "TwoMax"
+    budget_for_plots: 5000
     params:
       n: 100
 
   - name: "Jump-3"
     class: "Jump"
+    budget_for_plots: 10000
     params:
       n: 100
       k: 3
 
   - name: "Jump-5"
     class: "Jump"
+    budget_for_plots: 20000
     params:
       n: 100
       k: 5
 
-  - name: "Trap"
+  - name: "Trap-5"
     class: "Trap"
+    budget_for_plots: 20000
     params:
       n: 100
-      k: 3
+      k: 5
 
-  - name: "BinVal"
-    class: "BinVal"
-    params:
-      n: 60  # Optimum is 2^60 - 1; keep n small to avoid float precision issues
-
-  # Extended Pseudo-Boolean
-  - name: "Plateau"
+  - name: "Plateau-10"
     class: "Plateau"
+    budget_for_plots: 20000
     params:
       n: 100
       k: 10
 
-  - name: "HIFF"
+  - name: "HIFF-64"
     class: "HIFF"
+    budget_for_plots: 20000
     params:
-      # Hierarchical if and only if requires n to be a power of 2.
-      # Optimum = n * (log2(n) + 1) = 64*7 = 448.
       n: 64
 
-  # Combinatorial 
-  - name: "MaxkSAT"
-    class: "MaxkSAT"
-    params:
-      n: 50     # 50 boolean variables - tractable for all algorithms
-      k: 3
-      m: 200    # 4n clauses; standard phase-transition regime
-      seed: 42  # Fix instance seed for reproducibility across algorithm comparisons
-
-  # Rugged Landscape 
-  - name: "NK-k2"
-    class: "NKLandscape"
-    params:
-      n: 20     # HARD LIMIT: get_optimum_value() does exhaustive search for n<=20.
-      k: 2      # Low epistasis; moderately rugged
-      seed: 42  # Fix instance seed
-
-  - name: "NK-k4"
-    class: "NKLandscape"
-    params:
-      n: 20
-      k: 4      # Higher epistasis; highly rugged - expect all algorithms to struggle
-      seed: 42
+    # Combinatorial 
+  - name: "Petersen-3-Color"
+    class: "PetersenColoringMaxSAT"
+    params: {}
 
 algorithms:
-  # Local Search
   - name: "RLS"
     class: "RLS"
     args:
@@ -100,60 +92,37 @@ algorithms:
     args:
       defaults: {}
       by_problem:
-        # On NK landscapes, higher base epsilon helps escape local optima
-        NK-k2:
+        Jump-3:
           epsilon: 0.05
           decay: false
-        NK-k4:
-          epsilon: 0.1
+        Jump-5:
+          epsilon: 0.05
+          decay: false
+        Trap-5:
+          epsilon: 0.05
           decay: false
 
-  # Evolutionary
   - name: "(1+1)-EA"
     class: "OnePlusOneEA"
     args:
       defaults: {}
       by_problem: {}
 
-  - name: "(1+10)-EA"
-    class: "MuPlusLambdaEA"
-    args:
-      defaults:
-        mu: 1
-        lmbda: 10
-        # mutation_rate defaults to 1/n if omitted
-      by_problem: {}
-
-  - name: "(10+10)-EA"
-    class: "MuPlusLambdaEA"
-    args:
-      defaults:
-        mu: 10
-        lmbda: 10
-      by_problem: {}
-
-  # Simulated Annealing
-  - name: "SA-Log"
+  - name: "SA-Log-d_2.0"
     class: "SimulatedAnnealing"
     args:
       defaults:
         T_func:
           type: "logarithmic"
           params:
-            d: 4.0
+            d: 2.0
       by_problem:
-        # MaxkSAT has a rough energy landscape; larger d slows cooling
-        MaxkSAT:
-          T_func:
-            type: "logarithmic"
-            params:
-              d: 8.0
-        NK-k2:
+        Trap-5:
           T_func:
             type: "logarithmic"
             params:
               d: 6.0
-        NK-k4:
+        Jump-5:
           T_func:
             type: "logarithmic"
             params:
@@ -161,20 +130,16 @@ algorithms:
 
 plotting:
   enabled: true
-  save: true
-
   layout:
     per_problem_dir: true
     include_n_subdir: true
     structure:
       aggregate: "aggregate"
       history: "history"
-      distributions: "distributions"
-
+      distribution: "distributions"
   titles:
     include_problem_name: true
     include_problem_size: true
-
   plots:
     regret_curves:
       enabled: true
@@ -191,21 +156,19 @@ plotting:
 
     regret_boxplots:
       enabled: true
-      budget: "max"
       filename: "regret_boxplot_b{budget}.pdf"
 
     performance_profile:
       enabled: true
-      budget: "max"
       filename: "performance_profile_b{budget}.pdf"
 
     history_current:
-      enabled: true
+      enabled: false
       filename: "history_current.pdf"
       series: "current"
       log_x: false
       log_y: false
-      show_ttfo_markers: true
+      show_ttfo_markers: false
 
     history_best:
       enabled: true
@@ -230,7 +193,7 @@ plotting:
       series: "cumulative"
       use_best: false
       log_x: false
-      log_y: true
+      log_y: false
       show_ttfo_markers: true
 
     regret_instantaneous_best:
@@ -248,10 +211,21 @@ plotting:
       series: "cumulative"
       use_best: true
       log_x: false
-      log_y: true
+      log_y: false
       show_ttfo_markers: true
 
     ttfo_distribution:
       enabled: true
       filename: "history_ttfo_markers.pdf"
-      # Note: MaxkSAT will produce empty TTFO plots.
+
+    inverse_runtime_profile_surface:
+      enabled: false
+      filename: "inverse_runtime_profile_surface_{algorithm}.pdf"
+
+    inverse_runtime_profile_curves:
+      enabled: false
+      filename: "inverse_runtime_profile_curves.pdf"
+
+    cr_profile_verification:
+      enabled: false
+      filename: "cr_profile_verification.pdf"

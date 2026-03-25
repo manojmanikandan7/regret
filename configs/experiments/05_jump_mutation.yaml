@@ -1,105 +1,100 @@
 suite:
-  name: "01_baseline"
+  name: "05_jump_mutation"
   description: >
-    Algorithm-family comparison across pseudo-boolean problems of increasing
-    difficulty. 
-    - Research question: 
-      - At which budget does each algorithm family (local search,
-        evolutionary, simulated annealing) overtake the others, and
-      - Does the regret trajectory reveal the crossover point before TTFO does?
-    - Notes:
-      - BinVal is retained: its exponential fitness structure (optimum=2^50-1)
-        produces large fitness gaps and very fast convergence for all algorithms,
-        providing a qualitative contrast with the other problems; 
-        - CR_profile_verification is disabled suite-wide because BinVal violates 
-          the integer-level-increment assumption of the layer-cake sum. 
-        - Profile surface and profile curve plots are also disabled, 
-          this suite's question is algorithm-family comparison, and profile
-          analysis is the primary output of suites 05, 08, and 12; adding them here would
-          generate many output files without serving the suite's hypothesis.
-      - SA reduced to a single representative schedule (SA-Log-d_2.0) to keep the
-        algorithm-family distinction clean; 
-      - Budget ceiling raised to 10000 to include the regime where LeadingOnes and 
-        Jump-3 actually converge; 
-      - budget_for_plots set per-problem relative to E[TTFO].
+    Jump function mutation rate study. 
 
+    - Research question: does the instantaneous regret plateau 
+    (the flat band in the log-y trajectory while the algorithm is trapped at ones=n-k) 
+    reveal the phase transition in gap-crossing
+    difficulty more clearly than TTFO distributions, especially when P(opt)~~0?
 
-  runs: 50
+    - Notes: 
+      - log_y on regret_cumulative corrected to false: cumulative regret is monotone 
+        and its slope during the plateau phase (which should grow linearly) is 
+        invisible on log scale;
+      - (1+1)-EA-mu_0.5-by-n removed: at rate 0.5/n the algorithm is strictly
+        dominated on all Jump-k by rate 1/n (lower mutation rate never helps 
+        cross a k-bit gap) and its curve adds no insight;
+      - inverse_runtime_profile_surface enabled: the two-phase
+        behaviour of Jump (fast rise to fitness n-k, then stall) is precisely the
+        structure the profile surface is designed to visualise;  
+      - budget_for_plots set per-problem to capture plateau onset.
+  runs: 25
   mode: "full"
   parallel: true
   profile: false
-  budgets: [200, 500, 1000, 2000, 5000, 10000]
+  budgets: [500, 1000, 2000, 5000, 10000, 20000]
   output:
     raw_root: "results/raw"
     figures_root: "results/figures"
 
 problems:
-  - name: "OneMax"
-    class: "OneMax"
-    budget_for_plots: 2000
+  - name: "Jump-k2"
+    class: "Jump"
+    budget_for_plots: 5000
     params:
       n: 100
+      k: 2
 
-  - name: "LeadingOnes"
-    class: "LeadingOnes"
-    budget_for_plots: 10000
-    params:
-      n: 100
-
-  - name: "TwoMax"
-    class: "TwoMax"
-    budget_for_plots: 2000
-    params:
-      n: 100
-
-  - name: "Jump-3"
+  - name: "Jump-k3"
     class: "Jump"
     budget_for_plots: 10000
     params:
       n: 100
       k: 3
 
-  - name: "Trap-10"
-    class: "Trap"
-    budget_for_plots: 10000
+  - name: "Jump-k5"
+    class: "Jump"
+    budget_for_plots: 20000
+    params:
+      n: 100
+      k: 5
+
+  - name: "Jump-k7"
+    class: "Jump"
+    budget_for_plots: 20000
+    params:
+      n: 100
+      k: 7
+
+  - name: "Jump-k10"
+    class: "Jump"
+    budget_for_plots: 20000
     params:
       n: 100
       k: 10
 
-  - name: "BinVal"
-    class: "BinVal"
-    budget_for_plots: 500
-    params:
-      n: 50
-
 algorithms:
-  - name: "RLS"
-    class: "RLS"
-    args:
-      defaults: {}
-      by_problem: {}
-
-  - name: "RLSExploration"
-    class: "RLSExploration"
-    args:
-      defaults: {}
-      by_problem: {}
-
-  - name: "(1+1)-EA"
+  - name: "(1+1)-EA-mu_1-by-n"
     class: "OnePlusOneEA"
     args:
-      defaults: {}
+      defaults:
+        mutation_rate: 0.01
       by_problem: {}
 
-  - name: "SA-Log-d_2.0"
-    class: "SimulatedAnnealing"
+  - name: "(1+1)-EA-mu_2-by-n"
+    class: "OnePlusOneEA"
     args:
       defaults:
-        T_func:
-          type: "logarithmic"
-          params:
-            d: 2.0
+        mutation_rate: 0.02
       by_problem: {}
+
+  - name: "(1+1)-EA-mu_k-by-n"
+    class: "OnePlusOneEA"
+    args:
+      defaults:
+        mutation_rate: 0.03
+      by_problem:
+        Jump-k2:
+          mutation_rate: 0.02
+        Jump-k3:
+          mutation_rate: 0.03
+        Jump-k5:
+          mutation_rate: 0.05
+        Jump-k7:
+          mutation_rate: 0.07
+        Jump-k10:
+          mutation_rate: 0.10
 
 plotting:
   enabled: true
@@ -193,11 +188,11 @@ plotting:
       filename: "history_ttfo_markers.pdf"
 
     inverse_runtime_profile_surface:
-      enabled: false
+      enabled: true
       filename: "inverse_runtime_profile_surface_{algorithm}.pdf"
 
     inverse_runtime_profile_curves:
-      enabled: false
+      enabled: true
       filename: "inverse_runtime_profile_curves.pdf"
 
     cr_profile_verification:

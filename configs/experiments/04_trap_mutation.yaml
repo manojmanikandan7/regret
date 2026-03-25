@@ -1,105 +1,104 @@
 suite:
-  name: "01_baseline"
+  name: "04_trap_mutation"
   description: >
-    Algorithm-family comparison across pseudo-boolean problems of increasing
-    difficulty. 
+    Deceptive fitness landscape study with the Trap function.
+
     - Research question: 
-      - At which budget does each algorithm family (local search,
-        evolutionary, simulated annealing) overtake the others, and
-      - Does the regret trajectory reveal the crossover point before TTFO does?
+      - Does increasing the deception width k change the *shape* of the cumulative regret trajectory
+        (not just the final regret value), and
+      - Does SA's acceptance of worsening moves allow it to escape the deceptive basin where the EA cannot?
+
     - Notes:
-      - BinVal is retained: its exponential fitness structure (optimum=2^50-1)
-        produces large fitness gaps and very fast convergence for all algorithms,
-        providing a qualitative contrast with the other problems; 
-        - CR_profile_verification is disabled suite-wide because BinVal violates 
-          the integer-level-increment assumption of the layer-cake sum. 
-        - Profile surface and profile curve plots are also disabled, 
-          this suite's question is algorithm-family comparison, and profile
-          analysis is the primary output of suites 05, 08, and 12; adding them here would
-          generate many output files without serving the suite's hypothesis.
-      - SA reduced to a single representative schedule (SA-Log-d_2.0) to keep the
-        algorithm-family distinction clean; 
-      - Budget ceiling raised to 10000 to include the regime where LeadingOnes and 
-        Jump-3 actually converge; 
-      - budget_for_plots set per-problem relative to E[TTFO].
-
-
-  runs: 50
+      - k=1 removed - fully deceptive trap produces flat
+        zero-convergence plots for all algorithms at all rates, confirming known
+        theory without any regret-specific insight; 
+      - k=3 removed in favour of k=8 to widen the spacing and expose qualitative 
+        differences in regret shape between moderate and wide deception; 
+      - SA-Log-d_4.0 added as a comparison; SA is the natural algorithm 
+        for deceptive landscapes (accepting worsening moves is the mechanism needed to escape) 
+      - Mutation rates reduced to four theoretically motivated values (0.5/n, 1/n, 2/n, 5/n) 
+        to match suites 05 and 06, enabling direct cross-suite comparison.
+  runs: 25
   mode: "full"
   parallel: true
   profile: false
-  budgets: [200, 500, 1000, 2000, 5000, 10000]
+  budgets: [500, 1000, 2000, 5000, 10000]
   output:
     raw_root: "results/raw"
     figures_root: "results/figures"
 
 problems:
-  - name: "OneMax"
-    class: "OneMax"
-    budget_for_plots: 2000
-    params:
-      n: 100
-
-  - name: "LeadingOnes"
-    class: "LeadingOnes"
+  - name: "Trap-k5"
+    class: "Trap"
     budget_for_plots: 10000
     params:
       n: 100
+      k: 5
 
-  - name: "TwoMax"
-    class: "TwoMax"
-    budget_for_plots: 2000
-    params:
-      n: 100
-
-  - name: "Jump-3"
-    class: "Jump"
+  - name: "Trap-k8"
+    class: "Trap"
     budget_for_plots: 10000
     params:
       n: 100
-      k: 3
+      k: 8
 
-  - name: "Trap-10"
+  - name: "Trap-k10"
     class: "Trap"
     budget_for_plots: 10000
     params:
       n: 100
       k: 10
 
-  - name: "BinVal"
-    class: "BinVal"
-    budget_for_plots: 500
+  - name: "Trap-k20"
+    class: "Trap"
+    budget_for_plots: 10000
     params:
-      n: 50
+      n: 100
+      k: 20
 
 algorithms:
-  - name: "RLS"
-    class: "RLS"
-    args:
-      defaults: {}
-      by_problem: {}
-
-  - name: "RLSExploration"
-    class: "RLSExploration"
-    args:
-      defaults: {}
-      by_problem: {}
-
-  - name: "(1+1)-EA"
+  - name: "(1+1)-EA-mu_0.5-by-n"
     class: "OnePlusOneEA"
     args:
-      defaults: {}
+      defaults:
+        mutation_rate: 0.005
       by_problem: {}
 
-  - name: "SA-Log-d_2.0"
+  - name: "(1+1)-EA-mu_1-by-n"
+    class: "OnePlusOneEA"
+    args:
+      defaults:
+        mutation_rate: 0.01
+      by_problem: {}
+
+  - name: "(1+1)-EA-mu_2-by-n"
+    class: "OnePlusOneEA"
+    args:
+      defaults:
+        mutation_rate: 0.02
+      by_problem: {}
+
+  - name: "(1+1)-EA-mu_5-by-n"
+    class: "OnePlusOneEA"
+    args:
+      defaults:
+        mutation_rate: 0.05
+      by_problem: {}
+
+  - name: "SA-Log-d_4.0"
     class: "SimulatedAnnealing"
     args:
       defaults:
         T_func:
           type: "logarithmic"
           params:
-            d: 2.0
-      by_problem: {}
+            d: 4.0
+      by_problem:
+        Trap-k20:
+          T_func:
+            type: "logarithmic"
+            params:
+              d: 8.0
 
 plotting:
   enabled: true
@@ -110,7 +109,6 @@ plotting:
       aggregate: "aggregate"
       history: "history"
       distribution: "distributions"
-      profile: "profiles"
   titles:
     include_problem_name: true
     include_problem_size: true
