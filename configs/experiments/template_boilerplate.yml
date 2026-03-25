@@ -1,0 +1,158 @@
+# Experiment config boilerplate for Regret.
+#
+# Usage:
+# 1. Copy this file and rename it (for example: 14_my_suite.yaml).
+# 2. Replace names/classes/params with your suite values.
+# 3. Validate before running:
+#    uv run run_experiment validate configs/experiments/<your_file>.yaml
+
+suite:
+  name: "template_suite"
+  description: >
+    Short statement of your experiment question and expected outcome.
+  runs: 30
+  mode: "full"            # "lite" or "full"
+  parallel: true
+  profile: false           # If false, runtime-profile plots below must stay disabled.
+  budgets: [200, 500, 1000, 2000]
+  output:
+    raw_root: "results/raw"
+    figures_root: "results/figures"  # Required when plotting.enabled=true or suite.profile=true
+
+problems:
+  - name: "OneMax"
+    class: "OneMax"       # Must exist in PROBLEM_REGISTRY
+    budget_for_plots: 1000 # Must be one of suite.budgets
+    params:
+      n: 100
+
+  # Add more problems as needed.
+  # - name: "Jump-3"
+  #   class: "Jump"
+  #   budget_for_plots: 2000
+  #   params:
+  #     n: 100
+  #     k: 3
+
+algorithms:
+  - name: "RLS"
+    class: "RLS"          # Must exist in ALGORITHM_REGISTRY
+    args:
+      defaults: {}
+      by_problem: {}
+
+  # Simulated annealing example with a cooling schedule.
+  # - name: "SA-Log-d_2.0"
+  #   class: "SimulatedAnnealing"
+  #   args:
+  #     defaults:
+  #       T_func:
+  #         type: "logarithmic"
+  #         params:
+  #           d: 2.0
+  #     by_problem: {}
+
+plotting:
+  enabled: true
+  budget_for_plots: 1000   # Optional global default; must be in suite.budgets when set
+  layout:
+    per_problem_dir: true
+    include_n_subdir: true
+    structure:
+      aggregate: "aggregate"
+      history: "history"
+      distribution: "distributions"
+      profile: "profiles"
+  titles:
+    include_problem_name: true
+    include_problem_size: true
+  plots:
+    regret_curves:
+      enabled: true
+      filename: "regret_curves.pdf"
+      log_scale: true
+
+    convergence_probability:
+      enabled: true
+      filename: "convergence_probability.pdf"
+
+    comparison_heatmap:
+      enabled: true
+      filename: "comparison_heatmap.pdf"
+
+    regret_boxplots:
+      enabled: true
+      filename: "regret_boxplot_b{budget}.pdf"
+
+    performance_profile:
+      enabled: true
+      filename: "performance_profile_b{budget}.pdf"
+
+    history_current:
+      enabled: false
+      filename: "history_current.pdf"
+      series: "current"
+      log_x: false
+      log_y: false
+      show_ttfo_markers: false
+
+    history_best:
+      enabled: true
+      filename: "history_best.pdf"
+      series: "best"
+      log_x: false
+      log_y: false
+      show_ttfo_markers: true
+
+    regret_instantaneous:
+      enabled: true
+      filename: "history_regret_instantaneous.pdf"
+      series: "instantaneous"
+      use_best: false
+      log_x: false
+      log_y: true
+      show_ttfo_markers: true
+
+    regret_cumulative:
+      enabled: true
+      filename: "history_regret_cumulative.pdf"
+      series: "cumulative"
+      use_best: false
+      log_x: false
+      log_y: false
+      show_ttfo_markers: true
+
+    regret_instantaneous_best:
+      enabled: false
+      filename: "history_regret_instantaneous_best.pdf"
+      series: "instantaneous"
+      use_best: true
+      log_x: false
+      log_y: true
+      show_ttfo_markers: false
+
+    regret_cumulative_best:
+      enabled: true
+      filename: "history_regret_cumulative_best.pdf"
+      series: "cumulative"
+      use_best: true
+      log_x: false
+      log_y: false
+      show_ttfo_markers: true
+
+    ttfo_distribution:
+      enabled: true
+      filename: "history_ttfo_markers.pdf"
+
+    # Runtime profiling plots: keep disabled unless suite.profile=true.
+    inverse_runtime_profile_surface:
+      enabled: false
+      filename: "inverse_runtime_profile_surface_{algorithm}.pdf"
+
+    inverse_runtime_profile_curves:
+      enabled: false
+      filename: "inverse_runtime_profile_curves.pdf"
+
+    cr_profile_verification:
+      enabled: false
+      filename: "cr_profile_verification.pdf"

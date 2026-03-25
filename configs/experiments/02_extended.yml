@@ -2,7 +2,7 @@ suite:
   name: "02_extended"
   description: >
     - Extended pseudo-boolean benchmark using only the four algorithm families
-      from the baseline. 
+      from the baseline.
     - Research question: does the relative ordering of
       algorithm families (established on easy problems in suite 01) hold on
       harder and structurally more complex problems?
@@ -10,7 +10,7 @@ suite:
       - MuPlusLambdaEA variants removed. MuPlusLambdaEA records per-offspring history,
         making instantaneous regret incomparable to single-individual algorithms on the same axis;  #TODO: Cause for another experiment
       - SA d value standardised to 2.0 to match baseline; budget floor raised
-        from 100 to 500; 
+        from 100 to 500;
       - algorithms reduced to the same four families as suite 01
         to make cross-suite comparison valid.
   runs: 50
@@ -75,7 +75,7 @@ problems:
     params:
       n: 64
 
-    # Combinatorial 
+    # Combinatorial
   - name: "Petersen-3-Color"
     class: "PetersenColoringMaxSAT"
     params: {}
