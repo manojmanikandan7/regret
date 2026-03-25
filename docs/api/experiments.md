@@ -17,4 +17,3 @@
 ## Validation of configurations
 
 ::: regret.experiments.validation
-
