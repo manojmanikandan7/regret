@@ -78,7 +78,8 @@ CONFIG_SCHEMA = {
                     "budget_for_plots": {
                         "type": "integer",
                         "minimum": 1,
-                        "description": "Optional per-problem override for budget-specific figures. Default resolution order: problems[i].budget_for_plots -> plotting.budget_for_plots -> max(suite.budgets)",
+                        "description": "Optional per-problem override for budget-specific figures."
+                        "Default resolution order: problems[i].budget_for_plots -> plotting.budget_for_plots -> max(suite.budgets)",
                     },
                     "class": {
                         "type": "string",
@@ -343,7 +344,7 @@ CONFIG_SCHEMA = {
                                 },
                                 "reference_algorithm": {
                                     "type": "string",
-                                    "description": "Reference algorithm for pairwise tests. If omitted and pairwise annotation is enabled, the best mean-regret algorithm at the selected budget is used", 
+                                    "description": "Reference algorithm for pairwise tests. If omitted and pairwise annotation is enabled, the best mean-regret algorithm at the selected budget is used",
                                 },
                                 "paired_runs": {
                                     "type": "boolean",
@@ -756,20 +757,39 @@ CONFIG_SCHEMA = {
                     "suite": {
                         "type": "object",
                         "properties": {
-                            "profile": {"const": True},
+                            "profile": {"const": False},
                         },
-                        "required": ["enabled"],
+                        "required": ["profile"],
                     }
                 }
             },
             "then": {
                 "properties": {
-                    "suite": {
+                    "plotting": {
                         "type": "object",
                         "properties": {
-                            "output": {
+                            "plots": {
                                 "type": "object",
-                                "required": ["figures_root"],
+                                "properties": {
+                                    "inverse_runtime_profile_surface": {
+                                        "type": "object",
+                                        "properties": {
+                                            "enabled": {"const": False},
+                                        },
+                                    },
+                                    "inverse_runtime_profile_curves": {
+                                        "type": "object",
+                                        "properties": {
+                                            "enabled": {"const": False},
+                                        },
+                                    },
+                                    "cr_profile_verification": {
+                                        "type": "object",
+                                        "properties": {
+                                            "enabled": {"const": False},
+                                        },
+                                    },
+                                },
                             }
                         },
                     }

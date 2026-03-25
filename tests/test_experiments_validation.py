@@ -83,6 +83,43 @@ def test_validate_schema_accepts_suite_profile_flag() -> None:
     validate_schema(config)
 
 
+def test_validate_schema_requires_figures_root_when_suite_profile_enabled() -> None:
+    """figures_root is required when suite.profile is true."""
+    config = _valid_config()
+    config["suite"]["profile"] = True
+    del config["suite"]["output"]["figures_root"]
+
+    with pytest.raises(ValidationError, match="Schema validation failed"):
+        validate_schema(config)
+
+
+def test_validate_schema_rejects_profile_plots_when_suite_profile_disabled() -> None:
+    """Runtime profile plot toggles must be disabled when suite.profile is false."""
+    config = _valid_config()
+    config["suite"]["profile"] = False
+    config["plotting"]["plots"] = {
+        "inverse_runtime_profile_surface": {"enabled": True},
+        "inverse_runtime_profile_curves": {"enabled": False},
+        "cr_profile_verification": {"enabled": False},
+    }
+
+    with pytest.raises(ValidationError, match="Schema validation failed"):
+        validate_schema(config)
+
+
+def test_validate_schema_accepts_disabled_profile_plots_when_suite_profile_disabled() -> None:
+    """Runtime profile plot toggles may be present only when explicitly disabled."""
+    config = _valid_config()
+    config["suite"]["profile"] = False
+    config["plotting"]["plots"] = {
+        "inverse_runtime_profile_surface": {"enabled": False},
+        "inverse_runtime_profile_curves": {"enabled": False},
+        "cr_profile_verification": {"enabled": False},
+    }
+
+    validate_schema(config)
+
+
 def test_validate_schema_allows_missing_figures_root_when_plotting_disabled() -> None:
     """figures_root is optional when plotting is disabled."""
     config = _valid_config()
