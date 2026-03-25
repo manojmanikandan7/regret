@@ -369,7 +369,7 @@ def test_generate_plots_does_not_write_runtime_profile_csv_when_enabled(
         },
     )
 
-    csv_path = tmp_path / "suite" / "onemax" / "n8" / "profiles" / "cr_profile_data_rls.csv"
+    csv_path = tmp_path / "suite" / "onemax" / "profiles" / "n8" / "cr_profile_data_rls.csv"
     assert not csv_path.exists()
 
 
@@ -416,7 +416,7 @@ def test_export_runtime_profile_csv_writes_to_raw_root(tmp_path: Path, monkeypat
         raw_output_dir=tmp_path,
     )
 
-    csv_path = tmp_path / "suite" / "onemax" / "n8" / "profiles" / "cr_profile_data_rls.csv"
+    csv_path = tmp_path / "suite" / "onemax" / "profiles" / "n8" / "cr_profile_data_rls.csv"
     assert csv_path.exists()
 
     with csv_path.open("r", encoding="utf-8", newline="") as f:
@@ -503,5 +503,5 @@ def test_export_runtime_profile_csv_plots_when_figures_dir_is_provided(
     assert "figures/suite/onemax/n8/profiles" in calls["curves"]
     assert "figures/suite/onemax/n8/profiles" in calls["verification"]
 
-    csv_path = tmp_path / "raw" / "suite" / "onemax" / "n8" / "profiles" / "cr_profile_data_rls.csv"
+    csv_path = tmp_path / "raw" / "suite" / "onemax" / "profiles" / "n8" / "cr_profile_data_rls.csv"
     assert csv_path.exists()

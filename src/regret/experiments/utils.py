@@ -289,7 +289,7 @@ def export_runtime_profile_data(
     """Export runtime-profile CSV artifacts and optional profile plots.
 
     CSV files are written under:
-    <raw_output_dir>/<suite>/<problem>/n<n>/<profile_subdir>/cr_profile_data_<alg>.csv
+    <raw_output_dir>/<suite>/<problem>/<profile_subdir>/n<n>/cr_profile_data_<alg>.csv
 
     If figures_output_dir is provided, runtime-profile plots are also saved under:
     <figures_output_dir>/<suite>/<problem>/n<n>/<profile_subdir>/
@@ -319,15 +319,13 @@ def export_runtime_profile_data(
         if part
     )
 
-    def _profile_dir(base_output_dir: Path | str) -> Path:
-        base_dir = Path(base_output_dir) / safe_slug(suite_name)
-        if per_problem_dir:
-            base_dir = base_dir / safe_slug(problem_name)
-        if include_n_subdir:
-            base_dir = base_dir / f"n{n}"
-        return base_dir / structure.get("profile", "profiles")
-
-    raw_profile_dir = _profile_dir(raw_output_dir)
+    base_dir = Path(raw_output_dir) / safe_slug(suite_name)
+    if per_problem_dir:
+        base_dir = base_dir / safe_slug(problem_name)
+    base_dir = base_dir / structure.get("profile", "profiles")
+    if include_n_subdir:
+        base_dir = base_dir / f"n{n}"
+    raw_profile_dir = base_dir
     raw_profile_dir.mkdir(parents=True, exist_ok=True)
 
     from regret.analysis.profiles import run_profile_analysis
@@ -356,7 +354,12 @@ def export_runtime_profile_data(
     if figures_output_dir is None:
         return
 
-    figures_profile_dir = _profile_dir(figures_output_dir)
+    base_dir = Path(figures_output_dir) / safe_slug(suite_name)
+    if per_problem_dir:
+        base_dir = base_dir / safe_slug(problem_name)
+    if include_n_subdir:
+        base_dir = base_dir / f"n{n}"
+    figures_profile_dir = base_dir / structure.get("profile", "profiles")
     figures_profile_dir.mkdir(parents=True, exist_ok=True)
 
     if is_plot_enabled(profile_cfg, "inverse_runtime_profile_surface"):

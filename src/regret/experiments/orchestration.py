@@ -118,7 +118,7 @@ def execute_experiments(config: dict[str, Any], plot: bool = True) -> None:
 
     problem_specs = parse_problems(config)
     algorithm_specs = parse_algorithms(config)
-    runner = ExperimentRunner()
+    runner = ExperimentRunner(output_dir=suite_cfg["output"]["raw_root"])
 
     for problem_spec in problem_specs:
         problem = instantiate_problem(problem_spec)
