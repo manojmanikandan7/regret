@@ -116,12 +116,7 @@ class PetersenGraphVisualizer:
             x: Binary solution array.
             ax: Matplotlib axes to draw on.
         """
-        try:
-            import networkx as nx
-        except ImportError as err:
-            raise ImportError(
-                "networkx is required for graph visualization. Install with: pip install networkx"
-            ) from err
+        import networkx as nx
 
         # Build networkx graph
         G = nx.Graph()
@@ -167,7 +162,7 @@ class PetersenGraphVisualizer:
 
         ax.set_title("Petersen Graph 3-Coloring")
         ax.axis("off")
-        ax.set_aspect("equal")
+        ax.set_aspect("auto")
 
         # Add legend
         from matplotlib.patches import Patch
@@ -183,4 +178,4 @@ class PetersenGraphVisualizer:
 
             legend_elements.append(Line2D([0], [0], color="#FF0000", linewidth=2, linestyle="--", label="Conflicts"))
 
-        ax.legend(handles=legend_elements, loc="upper left", fontsize=9)
+        ax.legend(handles=legend_elements, loc="upper right", fontsize=9)

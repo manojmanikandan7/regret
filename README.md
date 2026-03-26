@@ -3,6 +3,7 @@
 > *Studying regret-based analysis as an empirical alternative to Drift Analysis for black-box optimisation algorithms on pseudo-boolean and combinatorial problems.*
 
 ---
+![A screengrab of a Petersen graph 3-coloring and instantaneous regret, acted on by a (1+1)-EA at time step 32](.github/assets/Petersen-demo.png)
 
 ## Motivation & Research Context
 

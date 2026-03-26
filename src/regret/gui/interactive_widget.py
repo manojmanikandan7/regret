@@ -66,8 +66,8 @@ class InteractiveTrajectoryViewer:
         """Create the matplotlib figure with two subplots."""
         import matplotlib.pyplot as plt
 
-        self._fig, (self._ax_graph, self._ax_regret) = plt.subplots(1, 2, figsize=(14, 5))
-        self._fig.suptitle("Interactive Algorithm Trajectory Viewer", fontsize=14, fontweight="bold")
+        self._fig, (self._ax_graph, self._ax_regret) = plt.subplots(1, 2, figsize=(15, 5), width_ratios=[0.4, 0.6])
+        self._fig.suptitle("Algorithm Trajectory", fontsize=14, fontweight="bold")
 
     def _update_plots(self):
         """Update both the graph visualization and regret plot."""
@@ -114,7 +114,7 @@ class InteractiveTrajectoryViewer:
         )
         self._ax_regret.set_xlabel("Evaluations", fontsize=11)
         self._ax_regret.set_ylabel("Instantaneous Regret", fontsize=11)
-        self._ax_regret.set_title("Regret Trajectory")
+        self._ax_regret.set_title("Instantaneous Regret Trajectory")
         self._ax_regret.grid(True, alpha=0.3)
         self._ax_regret.legend(loc="best")
 
