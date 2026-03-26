@@ -4,14 +4,15 @@ from regret.core.base import Algorithm, Problem
 class RLS(Algorithm):
     """Randomized Local Search / Stochastic Hill Climber."""
 
-    def __init__(self, problem: Problem, seed: int | None = None):
+    def __init__(self, problem: Problem, seed: int | None = None, callback=None):
         """Initialize RLS with optional RNG seed.
 
         Args:
             problem: Problem to optimize.
             seed: Optional seed for reproducibility.
+            callback: Optional callback invoked at each step.
         """
-        super().__init__(problem, seed)
+        super().__init__(problem, seed, callback)
 
     def reset(self):
         """Initialize state, solution, and tracking for a fresh run."""
@@ -21,7 +22,7 @@ class RLS(Algorithm):
         self.evaluations = 1
         self.best_value = self.current_value
         self.best_solution = self.current.copy()
-        self._record_history(self.current_value)
+        self._record_history(self.current_value, self.current)
 
     def step(self):
         """Perform one bit-flip move with hill-climbing acceptance."""
@@ -40,7 +41,7 @@ class RLS(Algorithm):
             self.best_value = self.current_value
             self.best_solution = self.current.copy()
 
-        self._record_history(self.current_value)
+        self._record_history(self.current_value, self.current)
 
 
 class RLSExploration(Algorithm):
@@ -55,6 +56,7 @@ class RLSExploration(Algorithm):
         epsilon: float | None = None,
         decay: bool = True,
         seed: int | None = None,
+        callback=None,
     ):
         """Initialize exploratory RLS with exploration rate settings.
 
@@ -63,10 +65,11 @@ class RLSExploration(Algorithm):
             epsilon: Base exploration probability; defaults to 1/n.
             decay: Whether to decay epsilon over evaluations.
             seed: Optional seed for reproducibility.
+            callback: Optional callback invoked at each step.
         """
         self.base_epsilon = epsilon or (1.0 / problem.n)
         self.decay = decay
-        super().__init__(problem, seed)
+        super().__init__(problem, seed, callback)
 
     def reset(self):
         """Initialize state, solution, and history for a fresh exploratory run."""
@@ -76,7 +79,7 @@ class RLSExploration(Algorithm):
         self.evaluations = 1
         self.best_value = self.current_value
         self.best_solution = self.current.copy()
-        self._record_history(self.current_value)
+        self._record_history(self.current_value, self.current)
 
     def step(self):
         """Perform one iteration combining exploration and local search."""
@@ -103,4 +106,4 @@ class RLSExploration(Algorithm):
             self.best_value = self.current_value
             self.best_solution = self.current.copy()
 
-        self._record_history(self.current_value)
+        self._record_history(self.current_value, self.current)

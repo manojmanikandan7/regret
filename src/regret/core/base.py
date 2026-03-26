@@ -1,6 +1,7 @@
 """Core abstractions for problems and algorithms."""
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 
 import numpy as np
 
@@ -42,15 +43,23 @@ class Problem(ABC):
 class Algorithm(ABC):
     """Abstract optimization algorithm operating on a `Problem`."""
 
-    def __init__(self, problem: Problem, seed: int | None = None):
+    def __init__(
+        self,
+        problem: Problem,
+        seed: int | None = None,
+        callback: Callable[[int, float, float, np.ndarray], None] | None = None,
+    ):
         """Set up algorithm state and RNG.
 
         Args:
             problem: Problem instance to optimize.
             seed: Optional seed for reproducible randomness.
+            callback: Optional callback invoked at each step with signature
+                     (evaluations, current_value, best_value, current_solution).
         """
         self.problem = problem
         self.rng = np.random.default_rng(seed)
+        self.callback = callback
         self.reset()
 
     def reset(self):
@@ -60,9 +69,16 @@ class Algorithm(ABC):
         self.best_solution = None
         self.history = []
 
-    def _record_history(self, current_value):
-        """Append a trajectory record of evaluations, current, and best value."""
+    def _record_history(self, current_value: float, current_solution: np.ndarray | None = None):
+        """Append a trajectory record and invoke callback if configured.
+
+        Args:
+            current_value: Fitness value of the current candidate.
+            current_solution: Binary array representing the current candidate (optional).
+        """
         self.history.append((self.evaluations, current_value, self.best_value))
+        if self.callback is not None and current_solution is not None:
+            self.callback(self.evaluations, current_value, self.best_value, current_solution)
 
     @abstractmethod
     def step(self):

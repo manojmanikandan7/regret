@@ -19,6 +19,7 @@ class SimulatedAnnealing(Algorithm):
         T_func: CoolingSchedule | None = None,
         min_T: float | None = None,
         seed: int | None = None,
+        callback=None,
     ):
         """Initialize simulated annealing with a cooling schedule.
 
@@ -27,10 +28,11 @@ class SimulatedAnnealing(Algorithm):
             T_func: Temperature schedule callable; defaults to logarithmic.
             min_T: Minimum temperature clamp to avoid zero temperature.
             seed: Optional RNG seed for reproducibility.
+            callback: Optional callback invoked at each step.
         """
         self.T_func = T_func or LogarithmicCooling()
         self.min_T = min_T or 1e-9
-        super().__init__(problem, seed)
+        super().__init__(problem, seed, callback)
 
     def reset(self):
         """Reinitialize state, solution, and trajectory for a fresh run."""
@@ -40,7 +42,7 @@ class SimulatedAnnealing(Algorithm):
         self.evaluations = 1
         self.best_value = self.current_value
         self.best_solution = self.current.copy()
-        self._record_history(self.current_value)
+        self._record_history(self.current_value, self.current)
 
     def step(self):
         """Perform one Metropolis update using the configured cooling schedule."""
@@ -71,7 +73,7 @@ class SimulatedAnnealing(Algorithm):
             self.best_value = self.current_value
             self.best_solution = self.current.copy()
 
-        self._record_history(self.current_value)
+        self._record_history(self.current_value, self.current)
 
 
 @dataclass(frozen=True)

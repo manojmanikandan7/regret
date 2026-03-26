@@ -83,7 +83,6 @@ def test_validate_schema_accepts_suite_profile_flag() -> None:
     validate_schema(config)
 
 
-
 def test_validate_schema_rejects_profile_plots_when_suite_profile_disabled() -> None:
     """Runtime profile plot toggles must be disabled when suite.profile is false."""
     config = _valid_config()

@@ -11,6 +11,7 @@ class OnePlusOneEA(Algorithm):
         problem: Problem,
         mutation_rate: float | None = None,
         seed: int | None = None,
+        callback=None,
     ):
         """Initialize (1+1)-EA with mutation rate.
 
@@ -18,9 +19,10 @@ class OnePlusOneEA(Algorithm):
             problem: Problem to optimize.
             mutation_rate: Bit-flip rate; defaults to 1/n.
             seed: Optional RNG seed for reproducibility.
+            callback: Optional callback invoked at each step.
         """
         self.mutation_rate = mutation_rate or (1.0 / problem.n)
-        super().__init__(problem, seed)
+        super().__init__(problem, seed, callback)
 
     def reset(self):
         """Initialize state, candidate, and trajectory for a fresh run."""
@@ -30,7 +32,7 @@ class OnePlusOneEA(Algorithm):
         self.evaluations = 1
         self.best_value = self.current_value
         self.best_solution = self.current.copy()
-        self._record_history(self.current_value)
+        self._record_history(self.current_value, self.current)
 
     def step(self):
         """Perform one mutation step and accept non-worsening offspring."""
@@ -51,7 +53,7 @@ class OnePlusOneEA(Algorithm):
             self.best_value = self.current_value
             self.best_solution = self.current.copy()
 
-        self._record_history(self.current_value)
+        self._record_history(self.current_value, self.current)
 
 
 class MuPlusLambdaEA(Algorithm):
@@ -64,6 +66,7 @@ class MuPlusLambdaEA(Algorithm):
         lmbda: int = 10,
         mutation_rate: float | None = None,
         seed: int | None = None,
+        callback=None,
     ):
         """Initialize (μ+λ)-EA with population and mutation settings.
 
@@ -73,11 +76,12 @@ class MuPlusLambdaEA(Algorithm):
             lmbda: Offspring population size.
             mutation_rate: Bit-flip rate; defaults to 1/n.
             seed: Optional RNG seed for reproducibility.
+            callback: Optional callback invoked at each step.
         """
         self.mu = mu
         self.lmbda = lmbda
         self.mutation_rate = mutation_rate or (1.0 / problem.n)
-        super().__init__(problem, seed)
+        super().__init__(problem, seed, callback)
 
     def reset(self):
         """Initialize population, fitness, and tracking for a fresh run."""
@@ -94,7 +98,7 @@ class MuPlusLambdaEA(Algorithm):
         # Here, the best_value from the population is considered the current value
         # NOTE: Change to all values of the population, if really neccessary
         #       WARN: Breaks instantaneous regret and cummulative regret calcs
-        self._record_history(self.best_value)
+        self._record_history(self.best_value, self.best_solution)
 
     def step(self):
         """Generate offspring, evaluate, and select next population."""
@@ -118,7 +122,7 @@ class MuPlusLambdaEA(Algorithm):
             if fitness > self.best_value:
                 self.best_value = fitness
                 self.best_solution = child.copy()
-            self._record_history(fitness)  # records actual evaluation, not population best
+            self._record_history(fitness, child)  # records actual evaluation, not population best
 
         # Combine and select
         combined = self.population + offspring
