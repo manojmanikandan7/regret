@@ -42,6 +42,13 @@ class OnePlusOneEA(Algorithm):
             if self.rng.random() < self.mutation_rate:
                 offspring[i] = 1 - offspring[i]
 
+        ## Speed-up adaptation from
+        # Towards a More Practice-Aware Runtime Analysis of Evolutionary Algorithms,
+        # Doerr C. & Pinto E.C. (2018), EA_{0->1}
+        if np.array_equal(offspring, self.current):
+            i = self.rng.integers(0, self.problem.n, 1)
+            offspring[i] = 1 - offspring[i]
+
         offspring_value = self.problem.evaluate(offspring)
         self.evaluations += 1
 
