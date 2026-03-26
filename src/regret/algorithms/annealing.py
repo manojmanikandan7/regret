@@ -7,7 +7,18 @@ from regret.core.base import Algorithm, Problem
 
 
 class CoolingSchedule(Protocol):
-    def __call__(self, t: int) -> int | float: ...
+    """Protocol for temperature schedules used by simulated annealing."""
+
+    def __call__(self, t: int) -> int | float:
+        """Return a temperature value for the given evaluation index.
+
+        Args:
+            t: Evaluation index.
+
+        Returns:
+            Temperature value at evaluation index t.
+        """
+        ...
 
 
 class SimulatedAnnealing(Algorithm):
@@ -83,7 +94,14 @@ class LogarithmicCooling(CoolingSchedule):
     d: float = 1.0
 
     def __call__(self, t: int) -> int | float:
-        """Compute temperature at evaluation t using logarithmic cooling."""
+        """Return logarithmic temperature at evaluation index t.
+
+        Args:
+            t: Evaluation index.
+
+        Returns:
+            Temperature value d / log(t + 1).
+        """
         return self.d / np.log(t + 1)
 
 
@@ -95,7 +113,14 @@ class ExponentialCooling(CoolingSchedule):
     alpha: float = 0.95
 
     def __call__(self, t: int) -> int | float:
-        """Compute temperature at evaluation t using exponential decay."""
+        """Return exponentially decayed temperature at evaluation index t.
+
+        Args:
+            t: Evaluation index.
+
+        Returns:
+            Temperature value T0 * alpha**t.
+        """
         return self.T0 * (self.alpha**t)
 
 
@@ -108,5 +133,12 @@ class LinearCooling(CoolingSchedule):
     max_iter: int = 10000
 
     def __call__(self, t: int) -> int | float:
-        """Compute temperature at evaluation t using linear decay."""
+        """Return linearly decayed temperature at evaluation index t.
+
+        Args:
+            t: Evaluation index.
+
+        Returns:
+            Temperature value clipped to not fall below Tf.
+        """
         return max(self.Tf, self.T0 - (self.T0 - self.Tf) * t / self.max_iter)
