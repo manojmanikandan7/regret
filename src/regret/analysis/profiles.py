@@ -55,18 +55,17 @@ def run_profile_analysis(
         ).astype(float)
 
     # Fitness levels: integers from 1 to f_star
-    # For large f_star (e.g. BinVal), subsample
-    if f_star <= 200:
-        fitness_levels = np.arange(1, int(f_star) + 1, dtype=float)
-    else:
-        fitness_levels = np.unique(
-            np.concatenate(
-                [
-                    np.arange(1, 50),
-                    np.geomspace(50, f_star, 150).astype(int),
-                ]
-            )
-        ).astype(float)
+    # if f_star <= 200:
+    fitness_levels = np.arange(1, int(f_star) + 1, dtype=float)
+    # else:
+    #     fitness_levels = np.unique(
+    #         np.concatenate(
+    #             [
+    #                 np.arange(1, 50),
+    #                 np.geomspace(50, f_star, 150).astype(int),
+    #             ]
+    #         )
+    #     ).astype(float)
 
     inv_profiles: dict[str, np.ndarray] = {}
     empirical_ecr: dict[str, np.ndarray] = {}
