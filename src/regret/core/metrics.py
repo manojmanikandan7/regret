@@ -121,8 +121,12 @@ def cumulative_regret(trajectory: Trajectory, f_star: float, use_best: bool = Fa
         return [(trajectory[0][0], 0.0)] if trajectory else []
 
     inst_regrets = instantaneous_regret(trajectory, f_star, use_best)
-    result = [(inst_regrets[0][0], 0.0)]
-    cumulative = 0.0
+    # Include the missing initial rectangle from time 0 to the first evaluation
+    # Under left-hold integration: cumulative_regret(t) = (t - 0) * regret_at_0
+    # We approximate regret_at_0 as the regret at the first evaluation
+    first_t, first_r = inst_regrets[0]
+    result = [(first_t, first_t * first_r)]
+    cumulative = first_t * first_r
 
     for i in range(1, len(inst_regrets)):
         t_prev, r_prev = inst_regrets[i - 1]

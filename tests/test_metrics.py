@@ -125,8 +125,9 @@ class TestCumulativeRegret:
         ]
         f_star = 10.0
         cum_regrets = cumulative_regret(trajectory, f_star, use_best=True)
-        # First entry should be 0
-        assert cum_regrets[0][1] == 0.0
+        # First entry should account for regret from time 0 to first evaluation
+        # Regret at eval 1 is 10.0 - 5.0 = 5.0, so at t=1 it's 1 * 5.0 = 5.0
+        assert cum_regrets[0][1] == 5.0
         # Cumulative regrets should be non-decreasing
         values = [r[1] for r in cum_regrets]
         assert all(values[i] <= values[i + 1] for i in range(len(values) - 1))
