@@ -1,18 +1,18 @@
 suite:
-  name: "08_layer_cake"
+  name: "08_runtime_profile_verification"
   description: >
-    Validates the layer-cake representation 
+    Validates the regret tail-sum representation
       E[CR(T)] = Sum_{v=1}^{f8} Sum_{t'=1}^{T} P(\tau_v > t')
-    on two problems with closed-form drift bounds. 
+    on two problems with closed-form drift bounds.
 
-    - RLS and (1+1)-EA achieve E[TTFO] = \theta(n log n) on OneMax 
-      and \theta(n^2) on LeadingOnes, making the expected shapes of 
-      both E[CR(T)] derivations predictable. 
-    - The cr_profile_verification plot is the primary output: disagreement 
-      between the trajectory-derived and profile-integral-derived E[CR(T)] 
-      indicates a bug in cumulative_regret, runtime profile construction, 
-      or trajectory recording. 100 runs reduce Monte-Carlo variance in E[CR(T)] 
-      to negligible levels. 
+    - RLS and (1+1)-EA achieve E[TTFO] = \theta(n log n) on OneMax
+      and \theta(n^2) on LeadingOnes, making the expected shapes of
+      both E[CR(T)] derivations predictable.
+    - The cr_profile_verification plot is the primary output: disagreement
+      between the trajectory-derived and profile-integral-derived E[CR(T)]
+      indicates a bug in cumulative_regret, runtime profile construction,
+      or trajectory recording. 100 runs reduce Monte-Carlo variance in E[CR(T)]
+      to negligible levels.
     - budget_for_plots for LeadingOnes is set to 10000 (~~ 2xE[TTFO])
       to capture the full cumulative regret ramp.
   runs: 100
