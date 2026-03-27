@@ -1019,7 +1019,7 @@ def plot_inverse_runtime_profile_curves(
         for alg_name, inv_profile in inv_profiles.items():
             ax.plot(time_grid, inv_profile[idx, :], label=alg_name, linewidth=2)
 
-        ax.set_title(f"v = {actual_level:.0f}")
+        ax.set_title(f"v = {actual_level:.3g}")
         ax.set_xlabel("Evaluations (T)")
         ax.set_ylim(-0.05, 1.05)
         ax.axhline(1.0, color="black", linestyle=":", linewidth=0.8, alpha=0.5)

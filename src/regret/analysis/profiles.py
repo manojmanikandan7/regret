@@ -41,15 +41,16 @@ def run_profile_analysis(
     # Build grids
     # Time grid: every evaluation from 1 to budget
     # For large budgets, subsample to keep memory reasonable
-    max_points = 500
+    # FIXME: Subsampling reduces accuracy; find a balanced subsampling measure
+    max_points = 5000
     if budget <= max_points:
         time_grid = np.arange(1, budget + 1, dtype=float)
     else:
         time_grid = np.unique(
             np.concatenate(
                 [
-                    np.arange(1, min(200, budget) + 1),  # dense at start
-                    np.geomspace(200, budget, max_points - 200).astype(int),
+                    np.arange(1, max_points + 1),  # dense at start
+                    np.geomspace(max_points, budget, max_points).astype(int),
                 ]
             )
         ).astype(float)
@@ -66,6 +67,18 @@ def run_profile_analysis(
     #             ]
     #         )
     #     ).astype(float)
+
+    # Fitness levels are integer-spaced for integer-valued objectives and
+    # dense linear for normalized/continuous objectives (e.g., NK in [0, 1]).
+    eps = 1e-12
+    is_integer_scale = abs(f_star - round(f_star)) <= eps and f_star >= 1.0
+    if is_integer_scale:
+        fitness_levels = np.arange(1.0, float(int(round(f_star))) + 1.0, dtype=float)
+    else:
+        # HACK: Not well grounded for verification, but enables support for gathering inverse runtime profile plots
+        n_levels = int(budget)
+        hi = max(float(f_star), eps)
+        fitness_levels = np.linspace(0.0, hi, num=n_levels, dtype=float)
 
     inv_profiles: dict[str, np.ndarray] = {}
     empirical_ecr: dict[str, np.ndarray] = {}
