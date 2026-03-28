@@ -64,7 +64,7 @@ class TestEndToEndOptimization:
 
         # Calculate regret via public metric helpers.
         regret = simple_regret(rls.best_value, optimum)
-        inst = instantaneous_regret(rls.history, optimum, use_best=True)
+        inst = instantaneous_regret(rls.history, optimum, track_incumbent=True)
         assert regret >= 0
         assert len(inst) == len(rls.history)
         assert inst[-1][1] == regret
@@ -139,7 +139,7 @@ class TestInstantaneousRegret:
         best_regrets = instantaneous_regret(
             rls.history,
             problem.get_optimum_value(),
-            use_best=True,
+            track_incumbent=True,
         )
         values = [r for _, r in best_regrets]
         assert all(values[i] >= values[i + 1] for i in range(len(values) - 1))
@@ -155,7 +155,7 @@ class TestInstantaneousRegret:
             if rls.best_value == optimum:
                 break
 
-        best_regrets = instantaneous_regret(rls.history, optimum, use_best=True)
+        best_regrets = instantaneous_regret(rls.history, optimum, track_incumbent=True)
         zero_idx = [i for i, (_, value) in enumerate(best_regrets) if value == 0.0]
 
         assert zero_idx

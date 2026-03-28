@@ -20,7 +20,7 @@ TypedDicts:
     TableStatistics: Summary statistics for simple regret values.
 """
 
-from typing import NotRequired, TypeAlias, TypedDict
+from typing import Any, NotRequired, TypeAlias, TypedDict
 
 import numpy as np
 
@@ -61,7 +61,7 @@ class RunResult(TypedDict):
 
 # Result Collection Types
 
-KeyedResults: TypeAlias = dict[tuple[str, int], list[RunResult]]
+KeyedResults: TypeAlias = dict[tuple[str, int], list[dict[str, Any]]]
 """Results keyed by (algorithm_name, budget) tuples.
 
 Each value is a list of run result dictionaries with keys:
@@ -83,7 +83,7 @@ Example:
     }
 """
 
-HistoryResults: TypeAlias = dict[str, list[RunResult]]
+HistoryResults: TypeAlias = dict[str, list[dict[str, Any]]]
 """Results keyed by algorithm name only (single-budget view).
 
 Each value is a list of run result dictionaries (same structure as KeyedResults

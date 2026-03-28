@@ -89,7 +89,7 @@ class TestInstantaneousRegret:
         """Test instantaneous regret for a single evaluation."""
         trajectory = [(0, 8.0, 8.0)]
         f_star = 10.0
-        regrets = instantaneous_regret(trajectory, f_star, use_best=True)
+        regrets = instantaneous_regret(trajectory, f_star, track_incumbent=True)
         assert len(regrets) == 1
         assert regrets[0][1] == 2.0  # f_star - best_value
 
@@ -103,7 +103,7 @@ class TestInstantaneousRegret:
             (5, 9.0, 9.0),
         ]
         f_star = 10.0
-        regrets = instantaneous_regret(trajectory, f_star, use_best=True)
+        regrets = instantaneous_regret(trajectory, f_star, track_incumbent=True)
         expected_values = [5.0, 4.0, 3.0, 2.0, 1.0]
         actual_values = [r[1] for r in regrets]
         assert actual_values == expected_values
@@ -124,7 +124,7 @@ class TestCumulativeRegret:
             (6, 10.0, 10.0),
         ]
         f_star = 10.0
-        cum_regrets = cumulative_regret(trajectory, f_star, use_best=True)
+        cum_regrets = cumulative_regret(trajectory, f_star, track_incumbent=True)
         # First entry should account for regret from time 0 to first evaluation
         # Regret at eval 1 is 10.0 - 5.0 = 5.0, so at t=1 it's 1 * 5.0 = 5.0
         assert cum_regrets[0][1] == 5.0
@@ -142,7 +142,7 @@ class TestCumulativeRegret:
             (5, 5.0, 5.0),
         ]
         f_star = 10.0
-        cum_regrets = cumulative_regret(trajectory, f_star, use_best=True)
+        cum_regrets = cumulative_regret(trajectory, f_star, track_incumbent=True)
         assert len(cum_regrets) == len(trajectory)
 
     def test_cumulative_regret_monotonic(self):
@@ -156,7 +156,7 @@ class TestCumulativeRegret:
             (6, 10.0, 10.0),
         ]
         f_star = 10.0
-        cum_regrets = cumulative_regret(trajectory, f_star, use_best=True)
+        cum_regrets = cumulative_regret(trajectory, f_star, track_incumbent=True)
         values = [r[1] for r in cum_regrets]
         # Should be monotonically non-decreasing
         assert all(values[i] <= values[i + 1] for i in range(len(values) - 1))
@@ -220,7 +220,7 @@ class TestMetricsIntegration:
         assert final_simple_regret == 0.0
 
         # Instantaneous regrets should be decreasing
-        inst_regrets = instantaneous_regret(trajectory, f_star, use_best=True)
+        inst_regrets = instantaneous_regret(trajectory, f_star, track_incumbent=True)
         regret_values = [r[1] for r in inst_regrets]
         assert all(regret_values[i] >= regret_values[i + 1] for i in range(len(regret_values) - 1))
 
@@ -241,8 +241,8 @@ class TestMetricsIntegration:
         f_star = 13.0
 
         # Calculate metrics
-        inst_regrets = instantaneous_regret(trajectory, f_star, use_best=True)
-        cum_regrets = cumulative_regret(trajectory, f_star, use_best=True)
+        inst_regrets = instantaneous_regret(trajectory, f_star, track_incumbent=True)
+        cum_regrets = cumulative_regret(trajectory, f_star, track_incumbent=True)
         found_time = ttfo(trajectory, f_star, tolerance=1e-9)
 
         # Instantaneous regrets should be non-negative
@@ -265,11 +265,11 @@ class TestMetricsEdgeCases:
         trajectory = [(1, 5.0, 5.0)]
         f_star = 10.0
 
-        inst_regrets = instantaneous_regret(trajectory, f_star, use_best=True)
+        inst_regrets = instantaneous_regret(trajectory, f_star, track_incumbent=True)
         assert len(inst_regrets) == 1
         assert inst_regrets[0][1] == 5.0
 
-        cum_regrets = cumulative_regret(trajectory, f_star, use_best=True)
+        cum_regrets = cumulative_regret(trajectory, f_star, track_incumbent=True)
         assert len(cum_regrets) == 1
         assert cum_regrets[0][1] == 0.0  # First cumulative regret is 0
 
@@ -283,7 +283,7 @@ class TestMetricsEdgeCases:
         ]
         f_star = 10.0
 
-        inst_regrets = instantaneous_regret(trajectory, f_star, use_best=True)
+        inst_regrets = instantaneous_regret(trajectory, f_star, track_incumbent=True)
         inst_values = [r[1] for r in inst_regrets]
         assert inst_values == [0.0, 0.0, 0.0, 0.0]
 
@@ -298,7 +298,7 @@ class TestMetricsEdgeCases:
         ]
         f_star = 10.0
 
-        inst_regrets = instantaneous_regret(trajectory, f_star, use_best=True)
+        inst_regrets = instantaneous_regret(trajectory, f_star, track_incumbent=True)
         inst_values = [r[1] for r in inst_regrets]
         # All should be 0 because best_value stays at 10
         assert inst_values == [0.0, 0.0, 0.0, 0.0, 0.0]
@@ -376,7 +376,7 @@ class TestHistorySeries:
 
 
 class TestRuntimeProfileHelpers:
-    """Test runtime profile helpers and layer-cake conversion."""
+    """Test runtime profile helpers and tail-sum conversion."""
 
     def test_runtime_profile_single_run(self):
         trajectory = [(1, 1.0, 1.0), (3, 3.0, 3.0), (5, 4.0, 4.0)]
