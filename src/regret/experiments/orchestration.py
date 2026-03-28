@@ -7,6 +7,12 @@ Assumes config is valid and handles only execution logic.
 from pathlib import Path
 from typing import Any
 
+from regret.analysis.tables import (
+    TableFormat,
+    create_aggregate_table,
+    create_results_table,
+    export_table,
+)
 from regret.experiments.runner import ExperimentRunner
 
 from .utils import (
@@ -288,3 +294,97 @@ def analyze_results(config: dict[str, Any]):
             )
 
     print("\n[analyze] Analysis completed")
+
+
+def generate_tables(config: dict[str, Any], fmt: TableFormat = TableFormat.LATEX) -> None:
+    """Generate summary tables from existing experiment results.
+
+    Creates per-problem tables and an aggregate cross-problem comparison table.
+    Tables are saved to `results/tables/<suite_name>/`.
+
+    Args:
+        config: Validated config dictionary.
+        fmt: Output format (latex, csv, or markdown).
+
+    Raises:
+        FileNotFoundError: If results directory or files not found.
+    """
+    import json
+    from collections import defaultdict
+
+    suite_name = config["suite"]["name"]
+    problem_specs = parse_problems(config)
+    algorithm_specs = parse_algorithms(config)
+    budgets = [int(b) for b in config["suite"]["budgets"]]
+
+    # Map slugs back to configured display names
+    problem_slug_to_name = {safe_slug(p.name): p.name for p in problem_specs}
+    algorithm_slug_to_name = {safe_slug(a.name): a.name for a in algorithm_specs}
+
+    # Scan for JSON files and group by problem
+    results_by_problem: dict[str, dict[tuple[str, int], list[dict[str, Any]]]] = defaultdict(dict)
+
+    results_dir = Path(config["suite"]["output"]["raw_root"]) / safe_slug(suite_name)
+
+    if not results_dir.exists():
+        raise FileNotFoundError(f"Results directory not found: {results_dir}")
+
+    json_files = list(results_dir.glob("**/*.json"))
+
+    if not json_files:
+        raise FileNotFoundError(f"No JSON results found in {results_dir}")
+
+    print(f"[table] Found {len(json_files)} result files in {results_dir}")
+
+    # Load and parse all results
+    for json_file in json_files:
+        with open(json_file) as f:
+            data = json.load(f)
+
+        metadata = data["metadata"]
+        results = data["results"]
+
+        rel_parts = metadata["name"].split("/")
+        problem_slug = rel_parts[1]
+        algorithm_slug = rel_parts[2]
+
+        problem_name = problem_slug_to_name.get(problem_slug, problem_slug)
+        algorithm_name = algorithm_slug_to_name.get(algorithm_slug, algorithm_slug)
+        budget = int(metadata["budget"])
+
+        results_by_problem[problem_name][(algorithm_name, budget)] = results
+
+    # Determine output directory and file extension
+    tables_dir = Path("results/tables") / safe_slug(suite_name)
+    tables_dir.mkdir(parents=True, exist_ok=True)
+
+    ext = {"latex": ".tex", "csv": ".csv", "markdown": ".md"}[fmt.value]
+
+    # Generate per-problem tables for each budget
+    for problem_name, problem_results in sorted(results_by_problem.items()):
+        for budget in budgets:
+            # Check if this budget has results for this problem
+            if not any(b == budget for _, b in problem_results.keys()):
+                continue
+
+            df = create_results_table(problem_results, budget)
+            if df.empty:
+                continue
+
+            filename = f"{safe_slug(problem_name)}_budget_{budget}{ext}"
+            filepath = tables_dir / filename
+            export_table(df, filepath, fmt)
+            print(f"[table] Wrote {filepath}")
+
+    # Generate aggregate cross-problem table for each budget
+    for budget in budgets:
+        df = create_aggregate_table(results_by_problem, budget)
+        if df.empty:
+            continue
+
+        filename = f"aggregate_budget_{budget}{ext}"
+        filepath = tables_dir / filename
+        export_table(df, filepath, fmt)
+        print(f"[table] Wrote {filepath}")
+
+    print(f"\n[table] Tables saved to {tables_dir}")

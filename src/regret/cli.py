@@ -14,6 +14,9 @@ Usage:
     ```
     run_experiment analyze path/to/config.yaml [path/to/config2.yaml ...]
     ```
+    ```
+    run_experiment table path/to/config.yaml [--format latex|csv|markdown]
+    ```
 """
 
 import sys
@@ -23,9 +26,11 @@ from typing import Annotated
 
 import typer
 
+from regret.analysis.tables import TableFormat
 from regret.experiments.orchestration import (
     analyze_results,
     execute_experiments,
+    generate_tables,
     plan_execution,
 )
 from regret.experiments.validation import ValidationError, validate_config
@@ -189,6 +194,33 @@ def _analyze_single(config_path: Path) -> bool:
         return False
 
 
+def _table_single(config_path: Path, fmt: TableFormat) -> bool:
+    """Generate tables for a single config file.
+
+    Args:
+        config_path: Path to the YAML config file.
+        fmt: Output format for the generated tables.
+
+    Returns:
+        True if table generation succeeded, False otherwise.
+    """
+    try:
+        config = validate_config(config_path)
+        generate_tables(config, fmt=fmt)
+        print("Table generation completed")
+        return True
+    except ValidationError as e:
+        print(f"Validation failed: {e}", file=sys.stderr)
+        return False
+    except FileNotFoundError as e:
+        print(f"Results not found: {e}", file=sys.stderr)
+        return False
+    except Exception as e:
+        print(f"Table generation failed: {e}", file=sys.stderr)
+        traceback.print_exc()
+        return False
+
+
 def _exit_on_failures(failures: int) -> None:
     """Return non-zero exit code when any config command fails.
 
@@ -257,6 +289,24 @@ def analyze(configs: ConfigPaths) -> None:
     for index, config_path in enumerate(configs, start=1):
         _print_config_header(config_path, index, total)
         if not _analyze_single(config_path):
+            failures += 1
+    _exit_on_failures(failures)
+
+
+@app.command()
+def table(
+    configs: ConfigPaths,
+    fmt: Annotated[
+        TableFormat,
+        typer.Option("--format", "-f", help="Output format for tables"),
+    ] = TableFormat.LATEX,
+) -> None:
+    """Generate summary tables from existing results for one or more config files."""
+    failures = 0
+    total = len(configs)
+    for index, config_path in enumerate(configs, start=1):
+        _print_config_header(config_path, index, total)
+        if not _table_single(config_path, fmt):
             failures += 1
     _exit_on_failures(failures)
 
