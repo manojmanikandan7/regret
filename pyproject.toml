@@ -17,7 +17,7 @@ dependencies = [
   "jupyter>=1.1.1",
   "matplotlib>=3.10.8",
   "networkx>=3.6.1",
-  "numpy>=2.3.5",
+  "numpy>=2.4.3",
   "pandas>=2.3.3",
   "pyyaml>=6.0.3",
   "scipy>=1.16.3",
@@ -39,7 +39,11 @@ dev = [
   { include-group = "typecheck" },
 ]
 lint = ["ruff"]
-test = ["coverage", "pytest"]
+test = [
+    "coverage",
+    "pytest",
+    "tabulate",
+]
 typecheck = ["ty"]
 docs = ["zensical", "mkdocstrings-python"]
 
