@@ -1,10 +1,10 @@
 # Experiment config boilerplate for Regret.
 #
 # Usage:
-# 1. Copy this file and rename it (for example: 14_my_suite.yaml).
+# 1. Copy this file and rename it (for example: 14_my_suite.yml).
 # 2. Replace names/classes/params with your suite values.
 # 3. Validate before running:
-#    uv run run_experiment validate configs/experiments/<your_file>.yaml
+#    uv run run_experiment validate configs/experiments/<your_file>.yml
 
 suite:
   name: "template_suite"
@@ -108,7 +108,7 @@ plotting:
       enabled: true
       filename: "history_regret_instantaneous.pdf"
       series: "instantaneous"
-      use_best: false
+      track_incumbent: false
       log_x: false
       log_y: true
       show_ttfo_markers: true
@@ -117,7 +117,7 @@ plotting:
       enabled: true
       filename: "history_regret_cumulative.pdf"
       series: "cumulative"
-      use_best: false
+      track_incumbent: false
       log_x: false
       log_y: false
       show_ttfo_markers: true
@@ -126,7 +126,7 @@ plotting:
       enabled: false
       filename: "history_regret_instantaneous_best.pdf"
       series: "instantaneous"
-      use_best: true
+      track_incumbent: true
       log_x: false
       log_y: true
       show_ttfo_markers: false
@@ -135,7 +135,7 @@ plotting:
       enabled: true
       filename: "history_regret_cumulative_best.pdf"
       series: "cumulative"
-      use_best: true
+      track_incumbent: true
       log_x: false
       log_y: false
       show_ttfo_markers: true

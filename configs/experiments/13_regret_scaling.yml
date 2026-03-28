@@ -122,7 +122,7 @@ plotting:
       enabled: true
       filename: "history_regret_instantaneous.pdf"
       series: "instantaneous"
-      use_best: false
+      track_incumbent: false
       log_x: false
       log_y: true
       show_ttfo_markers: true
@@ -131,7 +131,7 @@ plotting:
       enabled: true
       filename: "history_regret_cumulative.pdf"
       series: "cumulative"
-      use_best: false
+      track_incumbent: false
       log_x: false
       log_y: false
       show_ttfo_markers: true
@@ -140,7 +140,7 @@ plotting:
       enabled: false
       filename: "history_regret_instantaneous_best.pdf"
       series: "instantaneous"
-      use_best: true
+      track_incumbent: true
       log_x: false
       log_y: true
       show_ttfo_markers: false
@@ -149,7 +149,7 @@ plotting:
       enabled: true
       filename: "history_regret_cumulative_best.pdf"
       series: "cumulative"
-      use_best: true
+      track_incumbent: true
       log_x: false
       log_y: false
       show_ttfo_markers: true

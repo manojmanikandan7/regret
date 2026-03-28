@@ -9,7 +9,7 @@ suite:
     - This saturation appears in instantaneous regret as a permanent non-zero floor:
       the algorithm finds a local optimum and cannot escape, accumulating linear
       cumulative regret indefinitely.
-    - The inverse runtime profile surface P(\tau_v ≤ T)
+    - The inverse runtime profile surface P(\tau_v <= T)
       captures this as a truncated front - it rises to some v_local < f* and
       stalls, regardless of budget.
     - Three algorithms span the exploration-
@@ -165,7 +165,7 @@ plotting:
       enabled: true
       filename: "history_regret_instantaneous.pdf"
       series: "instantaneous"
-      use_best: false
+      track_incumbent: false
       log_x: false
       log_y: true
       show_ttfo_markers: true
@@ -174,7 +174,7 @@ plotting:
       enabled: true
       filename: "history_regret_cumulative.pdf"
       series: "cumulative"
-      use_best: false
+      track_incumbent: false
       log_x: false
       log_y: false
       show_ttfo_markers: true
@@ -183,7 +183,7 @@ plotting:
       enabled: true
       filename: "history_regret_instantaneous_best.pdf"
       series: "instantaneous"
-      use_best: true
+      track_incumbent: true
       log_x: false
       log_y: true
       show_ttfo_markers: true
@@ -192,7 +192,7 @@ plotting:
       enabled: true
       filename: "history_regret_cumulative_best.pdf"
       series: "cumulative"
-      use_best: true
+      track_incumbent: true
       log_x: false
       log_y: false
       show_ttfo_markers: true

@@ -3,6 +3,7 @@ JSON Schema for experiment configuration files.
 
 Defines the structure and constraints for YAML experiment configs.
 """
+
 CONFIG_SCHEMA = {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -463,7 +464,7 @@ CONFIG_SCHEMA = {
                                     "enum": ["instantaneous", "cumulative"],
                                     "default": "instantaneous",
                                 },
-                                "use_best": {"type": "boolean", "default": False},
+                                "track_incumbent": {"type": "boolean", "default": False},
                                 "log_x": {"type": "boolean", "default": False},
                                 "log_y": {"type": "boolean", "default": True},
                                 "show_ttfo_markers": {
@@ -511,7 +512,7 @@ CONFIG_SCHEMA = {
                                     "enum": ["instantaneous", "cumulative"],
                                     "default": "cumulative",
                                 },
-                                "use_best": {"type": "boolean", "default": False},
+                                "track_incumbent": {"type": "boolean", "default": False},
                                 "log_x": {"type": "boolean", "default": False},
                                 "log_y": {"type": "boolean", "default": True},
                                 "show_ttfo_markers": {
@@ -559,7 +560,7 @@ CONFIG_SCHEMA = {
                                     "enum": ["instantaneous", "cumulative"],
                                     "default": "instantaneous",
                                 },
-                                "use_best": {"type": "boolean", "default": True},
+                                "track_incumbent": {"type": "boolean", "default": True},
                                 "log_x": {"type": "boolean", "default": False},
                                 "log_y": {"type": "boolean", "default": True},
                                 "show_ttfo_markers": {
@@ -607,7 +608,7 @@ CONFIG_SCHEMA = {
                                     "enum": ["instantaneous", "cumulative"],
                                     "default": "cumulative",
                                 },
-                                "use_best": {"type": "boolean", "default": True},
+                                "track_incumbent": {"type": "boolean", "default": True},
                                 "log_x": {"type": "boolean", "default": False},
                                 "log_y": {"type": "boolean", "default": True},
                                 "show_ttfo_markers": {

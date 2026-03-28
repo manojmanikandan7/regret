@@ -12,7 +12,7 @@ suite:
         produces large fitness gaps and very fast convergence for all algorithms,
         providing a qualitative contrast with the other problems; 
         - CR_profile_verification is disabled suite-wide because BinVal violates 
-          the integer-level-increment assumption of the layer-cake sum. 
+          the integer-level-increment assumption of the tail-sum formula. 
         - Profile surface and profile curve plots are also disabled, 
           this suite's question is algorithm-family comparison, and profile
           analysis is the primary output of suites 05, 08, and 12; adding them here would
@@ -160,7 +160,7 @@ plotting:
       enabled: true
       filename: "history_regret_instantaneous.pdf"
       series: "instantaneous"
-      use_best: false
+      track_incumbent: false
       log_x: false
       log_y: true
       show_ttfo_markers: true
@@ -169,7 +169,7 @@ plotting:
       enabled: true
       filename: "history_regret_cumulative.pdf"
       series: "cumulative"
-      use_best: false
+      track_incumbent: false
       log_x: false
       log_y: false
       show_ttfo_markers: true
@@ -178,7 +178,7 @@ plotting:
       enabled: true
       filename: "history_regret_instantaneous_best.pdf"
       series: "instantaneous"
-      use_best: true
+      track_incumbent: true
       log_x: false
       log_y: true
       show_ttfo_markers: true
@@ -187,7 +187,7 @@ plotting:
       enabled: true
       filename: "history_regret_cumulative_best.pdf"
       series: "cumulative"
-      use_best: true
+      track_incumbent: true
       log_x: false
       log_y: false
       show_ttfo_markers: true
