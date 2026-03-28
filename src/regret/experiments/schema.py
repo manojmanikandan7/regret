@@ -137,10 +137,11 @@ CONFIG_SCHEMA = {
         },
         "plotting": {
             "type": "object",
+            "required": ["enabled"],
             "properties": {
                 "enabled": {
                     "type": "boolean",
-                    "description": "Master plotting switch. Must be explicitly provided by config",
+                    "description": "Master plotting switch (required, no default)",
                 },
                 "budget_for_plots": {
                     "type": "integer",
@@ -175,7 +176,8 @@ CONFIG_SCHEMA = {
                                 },
                                 "distribution": {
                                     "type": "string",
-                                    "description": "Subdirectory for budget-specific distribution/profile-at-budget plots (default: budget_{budget_for_plots})",
+                                    "default": "distributions",
+                                    "description": "Subdirectory for budget-specific distribution plots (default: distributions)",
                                 },
                                 "profile": {
                                     "type": "string",
@@ -212,8 +214,8 @@ CONFIG_SCHEMA = {
                             "properties": {
                                 "enabled": {
                                     "type": "boolean",
-                                    "default": True,
-                                    "description": "Enable aggregate regret curve plot (default: true)",
+                                    "default": False,
+                                    "description": "Enable aggregate regret curve plot (default: false)",
                                 },
                                 "filename": {
                                     "type": "string",
@@ -267,8 +269,8 @@ CONFIG_SCHEMA = {
                             "properties": {
                                 "enabled": {
                                     "type": "boolean",
-                                    "default": True,
-                                    "description": "Enable convergence probability plot (default: true)",
+                                    "default": False,
+                                    "description": "Enable convergence probability plot (default: false)",
                                 },
                                 "filename": {
                                     "type": "string",
@@ -291,8 +293,8 @@ CONFIG_SCHEMA = {
                             "properties": {
                                 "enabled": {
                                     "type": "boolean",
-                                    "default": True,
-                                    "description": "Enable pairwise comparison heatmap (default: true)",
+                                    "default": False,
+                                    "description": "Enable pairwise comparison heatmap (default: false)",
                                 },
                                 "filename": {
                                     "type": "string",
@@ -305,8 +307,8 @@ CONFIG_SCHEMA = {
                             "properties": {
                                 "enabled": {
                                     "type": "boolean",
-                                    "default": True,
-                                    "description": "Enable budget-specific regret boxplots (default: true)",
+                                    "default": False,
+                                    "description": "Enable budget-specific regret boxplots (default: false)",
                                 },
                                 "filename": {
                                     "type": "string",
@@ -332,8 +334,8 @@ CONFIG_SCHEMA = {
                             "properties": {
                                 "enabled": {
                                     "type": "boolean",
-                                    "default": True,
-                                    "description": "Enable budget-specific performance profiles (default: true)",
+                                    "default": False,
+                                    "description": "Enable budget-specific performance profiles (default: false)",
                                 },
                                 "filename": {
                                     "type": "string",
@@ -358,8 +360,8 @@ CONFIG_SCHEMA = {
                             "properties": {
                                 "enabled": {
                                     "type": "boolean",
-                                    "default": True,
-                                    "description": "Enable current-value history trajectory (default: true, requires known f_star)",
+                                    "default": False,
+                                    "description": "Enable current-value history trajectory (default: false, requires known f_star)",
                                 },
                                 "filename": {
                                     "type": "string",
@@ -405,8 +407,8 @@ CONFIG_SCHEMA = {
                             "properties": {
                                 "enabled": {
                                     "type": "boolean",
-                                    "default": True,
-                                    "description": "Enable best-value history trajectory (default: true, requires known f_star)",
+                                    "default": False,
+                                    "description": "Enable best-value history trajectory (default: false, requires known f_star)",
                                 },
                                 "filename": {
                                     "type": "string",
@@ -452,8 +454,8 @@ CONFIG_SCHEMA = {
                             "properties": {
                                 "enabled": {
                                     "type": "boolean",
-                                    "default": True,
-                                    "description": "Enable instantaneous regret trajectory (default: true, requires known f_star)",
+                                    "default": False,
+                                    "description": "Enable instantaneous regret trajectory (default: false, requires known f_star)",
                                 },
                                 "filename": {
                                     "type": "string",
@@ -500,8 +502,8 @@ CONFIG_SCHEMA = {
                             "properties": {
                                 "enabled": {
                                     "type": "boolean",
-                                    "default": True,
-                                    "description": "Enable cumulative regret trajectory (default: true, requires known f_star)",
+                                    "default": False,
+                                    "description": "Enable cumulative regret trajectory (default: false, requires known f_star)",
                                 },
                                 "filename": {
                                     "type": "string",
@@ -514,7 +516,7 @@ CONFIG_SCHEMA = {
                                 },
                                 "track_incumbent": {"type": "boolean", "default": False},
                                 "log_x": {"type": "boolean", "default": False},
-                                "log_y": {"type": "boolean", "default": True},
+                                "log_y": {"type": "boolean", "default": False},
                                 "show_ttfo_markers": {
                                     "type": "boolean",
                                     "default": True,
@@ -548,8 +550,8 @@ CONFIG_SCHEMA = {
                             "properties": {
                                 "enabled": {
                                     "type": "boolean",
-                                    "default": True,
-                                    "description": "Enable instantaneous regret over best-so-far values (default: true, requires known f_star)",
+                                    "default": False,
+                                    "description": "Enable instantaneous regret over best-so-far values (default: false, requires known f_star)",
                                 },
                                 "filename": {
                                     "type": "string",
@@ -596,8 +598,8 @@ CONFIG_SCHEMA = {
                             "properties": {
                                 "enabled": {
                                     "type": "boolean",
-                                    "default": True,
-                                    "description": "Enable cumulative regret over best-so-far values (default: true, requires known f_star)",
+                                    "default": False,
+                                    "description": "Enable cumulative regret over best-so-far values (default: false, requires known f_star)",
                                 },
                                 "filename": {
                                     "type": "string",
@@ -610,7 +612,7 @@ CONFIG_SCHEMA = {
                                 },
                                 "track_incumbent": {"type": "boolean", "default": True},
                                 "log_x": {"type": "boolean", "default": False},
-                                "log_y": {"type": "boolean", "default": True},
+                                "log_y": {"type": "boolean", "default": False},
                                 "show_ttfo_markers": {
                                     "type": "boolean",
                                     "default": True,
@@ -644,8 +646,8 @@ CONFIG_SCHEMA = {
                             "properties": {
                                 "enabled": {
                                     "type": "boolean",
-                                    "default": True,
-                                    "description": "Enable TTFO distribution plot (default: true)",
+                                    "default": False,
+                                    "description": "Enable TTFO distribution plot (default: false)",
                                 },
                                 "filename": {
                                     "type": "string",
@@ -679,8 +681,8 @@ CONFIG_SCHEMA = {
                             "properties": {
                                 "enabled": {
                                     "type": "boolean",
-                                    "default": True,
-                                    "description": "Enable per-algorithm inverse runtime profile surface plot (default: true)",
+                                    "default": False,
+                                    "description": "Enable per-algorithm inverse runtime profile surface plot (default: false, requires suite.profile=true)",
                                 },
                                 "filename": {
                                     "type": "string",
@@ -694,8 +696,8 @@ CONFIG_SCHEMA = {
                             "properties": {
                                 "enabled": {
                                     "type": "boolean",
-                                    "default": True,
-                                    "description": "Enable inverse runtime profile curve plot (default: true)",
+                                    "default": False,
+                                    "description": "Enable inverse runtime profile curve plot (default: false, requires suite.profile=true)",
                                 },
                                 "filename": {
                                     "type": "string",
@@ -708,8 +710,8 @@ CONFIG_SCHEMA = {
                             "properties": {
                                 "enabled": {
                                     "type": "boolean",
-                                    "default": True,
-                                    "description": "Enable profile identity verification plot (default: true)",
+                                    "default": False,
+                                    "description": "Enable profile identity verification plot (default: false, requires suite.profile=true)",
                                 },
                                 "filename": {
                                     "type": "string",
@@ -760,7 +762,6 @@ CONFIG_SCHEMA = {
                         "properties": {
                             "profile": {"const": False},
                         },
-                        "required": ["profile"],
                     }
                 }
             },

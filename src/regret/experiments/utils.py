@@ -108,24 +108,25 @@ def safe_slug(text: str) -> str:
 def is_plot_enabled(
     plots_cfg: dict[str, Any],
     plot_key: str,
-    default: bool = True,
 ) -> bool:
     """Check whether a plot type is enabled in the configuration.
+
+    A plot is enabled only if its section exists AND has `enabled: true`.
+    Missing plot sections or missing `enabled` keys are treated as disabled.
 
     Args:
         plots_cfg: Plotting configuration dictionary.
         plot_key: Key identifying the plot type.
-        default: Default value if key is missing or malformed.
 
     Returns:
-        True if the plot is enabled, False otherwise.
+        True if the plot is explicitly enabled, False otherwise.
     """
     if plot_key not in plots_cfg:
-        return default
+        return False
     cfg = plots_cfg[plot_key]
     if not isinstance(cfg, dict):
-        return default
-    return bool(cfg.get("enabled", default))
+        return False
+    return bool(cfg.get("enabled", False))
 
 
 def get_plot_filename(
