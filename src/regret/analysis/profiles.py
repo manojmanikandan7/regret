@@ -22,6 +22,8 @@ Functions:
     run_profile_analysis: Compute profiles and verify tail-sum relationship.
 """
 
+import logging
+
 import numpy as np
 
 from regret._types import (
@@ -37,6 +39,73 @@ from regret.core.metrics import (
     cumulative_regret,
     inv_profile_to_expected_cumulative_regret,
 )
+
+logger = logging.getLogger(__name__)
+
+
+def _build_adaptive_time_grid(budget: int, max_points: int = 5000) -> np.ndarray:
+    """Build an adaptive time grid that is denser at early evaluations.
+
+    Uses a three-phase approach:
+    1. Dense coverage for early evaluations (where fitness changes rapidly)
+    2. Moderate density for mid-range evaluations
+    3. Sparse coverage for late evaluations (where profiles typically plateau)
+
+    This balances accuracy with memory usage for large budgets.
+
+    Args:
+        budget: Maximum evaluation count.
+        max_points: Target maximum number of grid points (actual may be slightly higher
+            due to ensuring endpoint inclusion).
+
+    Returns:
+        Sorted array of unique evaluation time points from 1 to budget.
+    """
+    if budget <= max_points:
+        return np.arange(1, budget + 1, dtype=float)
+
+    # Adaptive grid with three phases:
+    # Phase 1: Dense linear coverage for first 10% of budget (most fitness improvement)
+    # Phase 2: Moderate geometric spacing for 10-50% of budget
+    # Phase 3: Sparse geometric spacing for 50-100% of budget
+
+    phase1_end = max(100, budget // 10)  # At least 100 points, or 10% of budget
+    phase2_end = budget // 2
+
+    # Allocate points: 40% to phase 1, 35% to phase 2, 25% to phase 3
+    n_phase1 = int(max_points * 0.4)
+    n_phase2 = int(max_points * 0.35)
+    n_phase3 = max_points - n_phase1 - n_phase2
+
+    # Phase 1: Dense linear (every point if possible, otherwise evenly spaced)
+    if phase1_end <= n_phase1:
+        phase1 = np.arange(1, phase1_end + 1)
+    else:
+        phase1 = np.linspace(1, phase1_end, n_phase1)
+
+    # Phase 2: Geometric spacing from phase1_end to phase2_end
+    if phase2_end > phase1_end:
+        phase2 = np.geomspace(phase1_end, phase2_end, n_phase2)
+    else:
+        phase2 = np.array([])
+
+    # Phase 3: Sparser geometric spacing from phase2_end to budget
+    if budget > phase2_end:
+        phase3 = np.geomspace(phase2_end, budget, n_phase3)
+    else:
+        phase3 = np.array([])
+
+    # Combine, convert to int (evaluation counts), and deduplicate
+    combined = np.concatenate([phase1, phase2, phase3])
+    time_grid = np.unique(np.round(combined).astype(int)).astype(float)
+
+    # Ensure endpoints are included
+    if time_grid[0] != 1.0:
+        time_grid = np.concatenate([[1.0], time_grid])
+    if time_grid[-1] != float(budget):
+        time_grid = np.concatenate([time_grid, [float(budget)]])
+
+    return time_grid
 
 
 def run_profile_analysis(
@@ -72,45 +141,35 @@ def run_profile_analysis(
             - profile_ecr: Dict mapping algorithm name to E[CR(T)] array of
               shape (T,), derived from inverse runtime profile via tail-sum formula.
     """
-    # Build grids
-    # Time grid: every evaluation from 1 to budget
-    # For large budgets, subsample to keep memory reasonable
-    # FIXME: Subsampling reduces accuracy; find a balanced subsampling measure
-    max_points = 5000
-    if budget <= max_points:
-        time_grid = np.arange(1, budget + 1, dtype=float)
-    else:
-        time_grid = np.unique(
-            np.concatenate(
-                [
-                    np.arange(1, max_points + 1),  # dense at start
-                    np.geomspace(max_points, budget, max_points).astype(int),
-                ]
-            )
-        ).astype(float)
+    # Build adaptive time grid - denser at early evaluations where fitness changes rapidly
+    time_grid = _build_adaptive_time_grid(budget, max_points=max_time_grid_points)
 
-    # Fitness levels: integers from 1 to f_star
-    # if f_star <= 200:
-    fitness_levels = np.arange(1, int(f_star) + 1, dtype=float)
-    # else:
-    #     fitness_levels = np.unique(
-    #         np.concatenate(
-    #             [
-    #                 np.arange(1, 50),
-    #                 np.geomspace(50, f_star, 150).astype(int),
-    #             ]
-    #         )
-    #     ).astype(float)
-
-    # Fitness levels are integer-spaced for integer-valued objectives and
-    # dense linear for normalized/continuous objectives (e.g., NK in [0, 1]).
+    # Build fitness level grid based on objective value type.
+    #
+    # For integer-valued objectives (OneMax, LeadingOnes, etc.), use integer spacing
+    # which aligns with the tail-sum representation for exact E[CR(T)] computation.
+    #
+    # For continuous objectives (NKLandscape in [0,1]), use linear spacing as an
+    # approximation - the tail-sum verification may show minor discrepancies.
     eps = 1e-12
     is_integer_scale = abs(f_star - round(f_star)) <= eps and f_star >= 1.0
     if is_integer_scale:
         fitness_levels = np.arange(1.0, float(int(round(f_star))) + 1.0, dtype=float)
     else:
-        # HACK: Not well grounded for verification, but enables support for gathering inverse runtime profile plots
-        n_levels = int(budget)
+        # For continuous/normalized objectives: use linear spacing.
+        # NOTE: This is an approximation. The tail-sum identity E[CR(T)] = sum of
+        # survival probabilities assumes discrete fitness levels. For continuous
+        # objectives, this produces approximate results suitable for visualization
+        # but may show small discrepancies in cr_profile_verification plots.
+
+        logger.warning(
+            "Non-integer f_star=%.4f detected. Using linear fitness level "
+            "spacing which provides approximate (not exact) E[CR(T)] computation. "
+            "The cr_profile_verification plot may show minor discrepancies.",
+            f_star,
+            stacklevel=2,
+        )
+        n_levels = min(int(budget), 1000)  # Cap levels to avoid memory issues
         hi = max(float(f_star), eps)
         fitness_levels = np.linspace(0.0, hi, num=n_levels, dtype=float)
 
