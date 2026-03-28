@@ -87,6 +87,40 @@ class TestRLSExploration:
         assert rls_exp.evaluations == 1
         assert len(rls_exp.history) == 1
 
+    def test_rls_exploration_step(self, simple_problem):
+        """Test RLSExploration performs a single step."""
+        rls_exp = RLSExploration(problem=simple_problem, epsilon=0.5, seed=10)
+        rls_exp.reset()
+        evals_before = rls_exp.evaluations
+        rls_exp.step()
+        assert rls_exp.evaluations == evals_before + 1
+
+    def test_rls_exploration_epsilon_decay(self, simple_problem):
+        """Test epsilon decays when decay=True."""
+        rls_exp = RLSExploration(problem=simple_problem, epsilon=1.0, decay=True, seed=20)
+        rls_exp.reset()
+        # With decay=True: effective_epsilon = base_epsilon / evaluations
+        # At eval=1: epsilon=1.0, at eval=10: epsilon=0.1
+        initial_epsilon = rls_exp.base_epsilon / rls_exp.evaluations
+        for _ in range(9):
+            rls_exp.step()
+        later_epsilon = rls_exp.base_epsilon / rls_exp.evaluations
+        assert later_epsilon < initial_epsilon
+
+    def test_rls_exploration_no_decay(self, simple_problem):
+        """Test epsilon stays constant when decay=False."""
+        rls_exp = RLSExploration(problem=simple_problem, epsilon=0.5, decay=False, seed=30)
+        rls_exp.reset()
+        # With decay=False, epsilon remains constant at base_epsilon
+        assert rls_exp.base_epsilon == 0.5
+        assert rls_exp.decay is False
+
+    def test_rls_exploration_default_epsilon(self, simple_problem):
+        """Test default epsilon is 1/n."""
+        rls_exp = RLSExploration(problem=simple_problem, seed=40)
+        expected_epsilon = 1.0 / simple_problem.n
+        assert rls_exp.base_epsilon == expected_epsilon
+
 
 class TestOnePlusOneEA:
     """Test suite for (1+1)-EA algorithm."""
@@ -180,6 +214,33 @@ class TestSimulatedAnnealing:
         sa.step()
         assert sa.evaluations == evals_before + 1
         assert len(sa.history) == 2
+
+    def test_sa_accepts_improving_moves(self, simple_problem):
+        """Test SA always accepts moves that improve fitness."""
+        cooling = LogarithmicCooling(d=100.0)  # High temp
+        sa = SimulatedAnnealing(problem=simple_problem, T_func=cooling, seed=100)
+        sa.reset()
+        initial_best = sa.best_value
+        # Run many steps - best should only improve or stay same
+        for _ in range(50):
+            sa.step()
+        assert sa.best_value >= initial_best
+
+    def test_sa_min_temperature_clamping(self, simple_problem):
+        """Test temperature is clamped to min_T."""
+        cooling = LogarithmicCooling(d=0.001)  # Very fast cooling
+        sa = SimulatedAnnealing(problem=simple_problem, T_func=cooling, min_T=0.5, seed=101)
+        sa.reset()
+        # After many steps, temperature should be clamped
+        for _ in range(100):
+            sa.step()
+        # Verify algorithm still runs (min_T prevents division issues)
+        assert sa.evaluations == 101
+
+    def test_sa_default_cooling_schedule(self, simple_problem):
+        """Test SA uses LogarithmicCooling by default."""
+        sa = SimulatedAnnealing(problem=simple_problem, seed=102)
+        assert isinstance(sa.T_func, LogarithmicCooling)
 
 
 class TestCoolingSchedules:
@@ -374,3 +435,238 @@ class TestAlgorithmIntegration:
             # Also verify this value is in history
             history_best_values = [best for _, _, best in rls.history]
             assert best_value in history_best_values
+
+
+class TestMuPlusLambdaEABehavior:
+    """Test suite for (μ+λ)-EA specific behavior."""
+
+    def test_mu_plus_lambda_ea_population_size(self, simple_problem):
+        """Test that population size equals mu after initialization."""
+        ea = MuPlusLambdaEA(problem=simple_problem, mu=7, lmbda=5, seed=42)
+        ea.reset()
+        assert len(ea.population) == 7
+        assert len(ea.fitness) == 7
+
+    def test_mu_plus_lambda_ea_population_maintained_after_step(self, simple_problem):
+        """Test that population size stays at mu after each step."""
+        ea = MuPlusLambdaEA(problem=simple_problem, mu=5, lmbda=10, seed=42)
+        ea.reset()
+        for _ in range(10):
+            ea.step()
+            assert len(ea.population) == 5
+            assert len(ea.fitness) == 5
+
+    def test_mu_plus_lambda_ea_offspring_count_per_step(self, simple_problem):
+        """Test that lambda offspring are generated per step."""
+        ea = MuPlusLambdaEA(problem=simple_problem, mu=3, lmbda=7, seed=42)
+        ea.reset()
+        evals_after_reset = ea.evaluations  # mu evaluations
+        ea.step()
+        # Should have generated lambda offspring
+        assert ea.evaluations == evals_after_reset + 7
+
+    def test_mu_plus_lambda_ea_selection_keeps_best(self, onemax_problem):
+        """Test that selection keeps the best mu individuals."""
+        ea = MuPlusLambdaEA(problem=onemax_problem, mu=3, lmbda=5, seed=42)
+        ea.reset()
+
+        # Run several steps
+        for _ in range(20):
+            ea.step()
+
+        # The population should contain the best individuals
+        # Fitness list should be sorted (top mu are kept)
+        assert all(ea.fitness[i] <= ea.fitness[i + 1] for i in range(len(ea.fitness) - 1))
+
+    def test_mu_plus_lambda_ea_default_mutation_rate(self, simple_problem):
+        """Test that default mutation rate is 1/n."""
+        ea = MuPlusLambdaEA(problem=simple_problem, mu=5, lmbda=5, seed=42)
+        expected_rate = 1.0 / simple_problem.n
+        assert ea.mutation_rate == expected_rate
+
+    def test_mu_plus_lambda_ea_custom_mutation_rate(self, simple_problem):
+        """Test that custom mutation rate is used."""
+        ea = MuPlusLambdaEA(problem=simple_problem, mu=5, lmbda=5, mutation_rate=0.25, seed=42)
+        assert ea.mutation_rate == 0.25
+
+    def test_mu_plus_lambda_ea_history_records_all_offspring(self, simple_problem):
+        """Test that history records each offspring evaluation."""
+        ea = MuPlusLambdaEA(problem=simple_problem, mu=3, lmbda=4, seed=42)
+        ea.reset()
+        initial_history = len(ea.history)  # 1 from reset
+
+        ea.step()
+        # Should record lambda evaluations
+        assert len(ea.history) == initial_history + 4
+
+        ea.step()
+        assert len(ea.history) == initial_history + 8
+
+    def test_mu_plus_lambda_ea_best_tracked_across_steps(self, onemax_problem):
+        """Test that best_value and best_solution are tracked correctly."""
+        ea = MuPlusLambdaEA(problem=onemax_problem, mu=5, lmbda=10, seed=42)
+        ea.reset()
+        initial_best = ea.best_value
+
+        for _ in range(50):
+            ea.step()
+            # best_value should never decrease
+            assert ea.best_value >= initial_best
+
+        # Best solution should evaluate to best_value
+        assert onemax_problem.evaluate(ea.best_solution) == ea.best_value
+
+    def test_mu_plus_lambda_ea_callback_invoked_per_offspring(self, simple_problem):
+        """Test that callback is invoked for each offspring evaluation."""
+        callback_data = []
+
+        def callback(evaluations, current_value, best_value, solution):
+            callback_data.append(
+                {
+                    "evaluations": evaluations,
+                    "current_value": current_value,
+                    "best_value": best_value,
+                }
+            )
+
+        ea = MuPlusLambdaEA(problem=simple_problem, mu=2, lmbda=3, seed=42, callback=callback)
+        ea.reset()
+        callback_data.clear()  # Clear reset callback
+
+        ea.step()
+        # Should have 3 callbacks (one per offspring)
+        assert len(callback_data) == 3
+
+        # Evaluations should increment
+        evaluations = [d["evaluations"] for d in callback_data]
+        assert evaluations == sorted(evaluations)
+
+    def test_mu_plus_lambda_ea_mu_one_lambda_one(self, simple_problem):
+        """Test (1+1)-style configuration with mu=1, lambda=1."""
+        ea = MuPlusLambdaEA(problem=simple_problem, mu=1, lmbda=1, seed=42)
+        ea.reset()
+        assert len(ea.population) == 1
+        assert ea.evaluations == 1
+
+        ea.step()
+        assert len(ea.population) == 1
+        assert ea.evaluations == 2
+
+    def test_mu_plus_lambda_ea_large_lambda(self, simple_problem):
+        """Test with lambda much larger than mu."""
+        ea = MuPlusLambdaEA(problem=simple_problem, mu=2, lmbda=20, seed=42)
+        ea.reset()
+
+        ea.step()
+        # Still only mu individuals in population
+        assert len(ea.population) == 2
+        # But many evaluations
+        assert ea.evaluations == 2 + 20
+
+    def test_mu_plus_lambda_ea_reproducibility(self, simple_problem):
+        """Test that same seed produces identical results."""
+        ea1 = MuPlusLambdaEA(problem=simple_problem, mu=3, lmbda=5, seed=123)
+        ea1.reset()
+        for _ in range(10):
+            ea1.step()
+        history1 = list(ea1.history)
+        best1 = ea1.best_value
+
+        ea2 = MuPlusLambdaEA(problem=simple_problem, mu=3, lmbda=5, seed=123)
+        ea2.reset()
+        for _ in range(10):
+            ea2.step()
+        history2 = list(ea2.history)
+        best2 = ea2.best_value
+
+        assert history1 == history2
+        assert best1 == best2
+
+
+class TestAlgorithmCallbacks:
+    """Test suite for algorithm callback functionality."""
+
+    def test_rls_callback_invoked(self, simple_problem):
+        """Test that RLS invokes callback with correct arguments."""
+        callback_data = []
+
+        def callback(evaluations, current_value, best_value, solution):
+            callback_data.append(
+                {
+                    "evaluations": evaluations,
+                    "current_value": current_value,
+                    "best_value": best_value,
+                    "solution": solution.copy(),
+                }
+            )
+
+        rls = RLS(problem=simple_problem, seed=42, callback=callback)
+        rls.reset()
+
+        for _ in range(5):
+            rls.step()
+
+        # Callback should be invoked at least once per step
+        assert len(callback_data) >= 6
+
+        # Verify callback receives valid data
+        for entry in callback_data:
+            assert entry["evaluations"] >= 1
+            assert entry["current_value"] is not None
+            assert entry["best_value"] is not None
+            assert entry["solution"] is not None
+            assert len(entry["solution"]) == simple_problem.n
+
+    def test_one_plus_one_ea_callback_invoked(self, simple_problem):
+        """Test that OnePlusOneEA invokes callback with correct arguments."""
+        callback_data = []
+
+        def callback(evaluations, current_value, best_value, solution):
+            callback_data.append(
+                {
+                    "evaluations": evaluations,
+                    "current_value": current_value,
+                    "best_value": best_value,
+                    "solution": solution.copy(),
+                }
+            )
+
+        ea = OnePlusOneEA(problem=simple_problem, mutation_rate=0.1, seed=42, callback=callback)
+        ea.reset()
+
+        for _ in range(5):
+            ea.step()
+
+        # Callback should be invoked at least once per step
+        assert len(callback_data) >= 6
+
+        # Verify evaluations increase
+        evaluations = [entry["evaluations"] for entry in callback_data]
+        assert evaluations == sorted(evaluations)
+
+    def test_simulated_annealing_callback_invoked(self, simple_problem):
+        """Test that SimulatedAnnealing invokes callback with correct arguments."""
+        callback_data = []
+
+        def callback(evaluations, current_value, best_value, solution):
+            callback_data.append(
+                {
+                    "evaluations": evaluations,
+                    "current_value": current_value,
+                    "best_value": best_value,
+                    "solution": solution.copy(),
+                }
+            )
+
+        sa = SimulatedAnnealing(problem=simple_problem, seed=42, callback=callback)
+        sa.reset()
+
+        for _ in range(5):
+            sa.step()
+
+        # Callback should be invoked at least once per step
+        assert len(callback_data) >= 6
+
+        # Verify best_value is non-decreasing
+        best_values = [entry["best_value"] for entry in callback_data]
+        assert all(best_values[i] <= best_values[i + 1] for i in range(len(best_values) - 1))

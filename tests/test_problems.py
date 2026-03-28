@@ -133,6 +133,26 @@ class TestJump:
             problem = Jump(n=20, k=k)
             assert problem.get_optimum_value() == float(20 + k)
 
+    def test_jump_k_zero(self):
+        """Test Jump with k=0 (reduces to OneMax + 0)."""
+        problem = Jump(n=10, k=0)
+        x = np.ones(10, dtype=int)
+        # With k=0: fitness = n + 0 = n for all-ones
+        assert problem.evaluate(x) == 10.0
+        assert problem.get_optimum_value() == 10.0
+
+    def test_jump_k_equals_n(self):
+        """Test Jump with k=n (maximum gap size)."""
+        problem = Jump(n=10, k=10)
+        x = np.ones(10, dtype=int)
+        # All ones: fitness = n + k = 20
+        assert problem.evaluate(x) == 20.0
+        assert problem.get_optimum_value() == 20.0
+        # Any other solution in the gap region
+        x_partial = np.array([1, 1, 1, 1, 1, 1, 1, 1, 1, 0])
+        # 9 ones, in gap region: fitness = n - ones(x) = 10 - 9 = 1
+        assert problem.evaluate(x_partial) == 1.0
+
 
 class TestTwoMax:
     """Test suite for TwoMax problem (two local optima)."""
@@ -210,6 +230,19 @@ class TestTrap:
         x = np.zeros(6, dtype=int)
         assert problem.evaluate(x) == 5.0
 
+    def test_trap_k_zero(self):
+        """Test Trap with k=0 (division by zero case - should handle gracefully)."""
+        # Note: When k=0, z = n - k = n, and the formula becomes:
+        # z - ones = n - ones for ones <= n (which is always true)
+        # So Trap with k=0 behaves like "n - ones" (inverse of OneMax)
+        problem = Trap(n=5, k=0)
+        x_zeros = np.zeros(5, dtype=int)
+        # All zeros: ones=0, z=5, z - ones = 5
+        assert problem.evaluate(x_zeros) == 5.0
+        x_ones = np.ones(5, dtype=int)
+        # All ones: ones=5, z=5, z - ones = 0
+        assert problem.evaluate(x_ones) == 0.0
+
 
 class TestPlateau:
     """Test suite for Plateau problem."""
@@ -232,6 +265,26 @@ class TestPlateau:
         x = np.ones(10, dtype=int)
         assert problem.evaluate(x) == 10.0
         assert problem.get_optimum_value() == 10.0
+
+    def test_plateau_k_zero(self):
+        """Test Plateau with k=0 (no plateau, behaves like OneMax)."""
+        problem = Plateau(n=10, k=0)
+        x = np.ones(10, dtype=int)
+        assert problem.evaluate(x) == 10.0
+        # With k=0, no flat region - should behave like OneMax
+        x_partial = np.array([1, 1, 1, 1, 1, 1, 1, 1, 0, 0])
+        assert problem.evaluate(x_partial) == 8.0
+
+    def test_plateau_k_equals_n(self):
+        """Test Plateau with k=n (entire space is plateau except optimum)."""
+        problem = Plateau(n=10, k=10)
+        x = np.ones(10, dtype=int)
+        assert problem.evaluate(x) == 10.0
+        assert problem.get_optimum_value() == 10.0
+        # Any non-optimal solution should have value 0 (in plateau region)
+        x_partial = np.array([1, 1, 1, 1, 1, 1, 1, 1, 1, 0])
+        # With k=n, n-k=0, so any 0 < ones < n gives plateau value = 0
+        assert problem.evaluate(x_partial) == 0.0
 
 
 class TestHIFF:
@@ -323,6 +376,98 @@ class TestMaxkSAT:
         """Reported optimum value is the theoretical upper bound m."""
         problem = MaxkSAT(n=7, m=11, k=3, seed=7)
         assert problem.get_optimum_value() == 11.0
+
+    def test_maxksat_default_m_is_4n(self):
+        """Test that default m equals 4*n when not specified."""
+        problem = MaxkSAT(n=10, k=3, seed=42)
+        assert problem.m == 40
+        assert len(problem.clauses) == 40
+
+    def test_maxksat_k_equals_1(self):
+        """Test MaxkSAT with k=1 (unit clauses)."""
+        problem = MaxkSAT(n=5, m=10, k=1, seed=42)
+        assert problem.k == 1
+        # Each clause should have exactly 1 variable
+        for variables, negations in problem.clauses:
+            assert len(variables) == 1
+            assert len(negations) == 1
+
+    def test_maxksat_k_equals_n(self):
+        """Test MaxkSAT with k=n (each clause uses all variables)."""
+        problem = MaxkSAT(n=5, m=3, k=5, seed=42)
+        assert problem.k == 5
+        # Each clause should have exactly n variables
+        for variables, _negations in problem.clauses:
+            assert len(variables) == 5
+            # All variables should be unique within a clause
+            assert len(set(variables)) == 5
+
+    def test_maxksat_all_ones_evaluation(self):
+        """Test evaluation with all-ones assignment."""
+        problem = MaxkSAT(n=10, m=20, k=3, seed=42)
+        x = np.ones(10, dtype=int)
+        value = problem.evaluate(x)
+        # Value should be between 0 and m
+        assert 0.0 <= value <= 20.0
+
+    def test_maxksat_all_zeros_evaluation(self):
+        """Test evaluation with all-zeros assignment."""
+        problem = MaxkSAT(n=10, m=20, k=3, seed=42)
+        x = np.zeros(10, dtype=int)
+        value = problem.evaluate(x)
+        # Value should be between 0 and m
+        assert 0.0 <= value <= 20.0
+
+    def test_maxksat_clause_structure(self):
+        """Test that clause structure is correct."""
+        problem = MaxkSAT(n=10, m=5, k=3, seed=42)
+        for variables, negations in problem.clauses:
+            # Variables should be valid indices
+            assert all(0 <= v < 10 for v in variables)
+            # Negations should be binary
+            assert all(n in (0, 1) for n in negations)
+            # k variables per clause
+            assert len(variables) == 3
+            # Variables should be unique within clause
+            assert len(set(variables)) == 3
+
+    def test_maxksat_different_seeds_different_clauses(self):
+        """Test that different seeds produce different clauses."""
+        p1 = MaxkSAT(n=10, m=10, k=3, seed=1)
+        p2 = MaxkSAT(n=10, m=10, k=3, seed=2)
+
+        # Check that at least some clauses differ
+        different = False
+        for (v1, n1), (v2, n2) in zip(p1.clauses, p2.clauses, strict=False):
+            if not np.array_equal(v1, v2) or not np.array_equal(n1, n2):
+                different = True
+                break
+        assert different
+
+    def test_maxksat_evaluation_deterministic(self):
+        """Test that evaluation is deterministic."""
+        problem = MaxkSAT(n=10, m=20, k=3, seed=42)
+        x = np.array([1, 0, 1, 1, 0, 0, 1, 0, 1, 0])
+        val1 = problem.evaluate(x)
+        val2 = problem.evaluate(x)
+        assert val1 == val2
+
+    def test_maxksat_single_clause(self):
+        """Test MaxkSAT with a single clause."""
+        problem = MaxkSAT(n=5, m=1, k=3, seed=42)
+        assert len(problem.clauses) == 1
+        assert problem.get_optimum_value() == 1.0
+
+    def test_maxksat_large_instance(self):
+        """Test MaxkSAT with larger instance."""
+        problem = MaxkSAT(n=50, m=200, k=3, seed=42)
+        assert problem.n == 50
+        assert problem.m == 200
+        assert len(problem.clauses) == 200
+
+        x = np.random.randint(0, 2, size=50)
+        value = problem.evaluate(x)
+        assert 0.0 <= value <= 200.0
 
 
 class TestPetersenColoringMaxSAT:
