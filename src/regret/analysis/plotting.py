@@ -254,25 +254,54 @@ def _pairwise_stats_text(
     return "\n".join(lines)
 
 
-def _draw_pairwise_annotation(ax, text: str) -> None:
-    """Draw pairwise statistics annotation box on axes.
+def _draw_pairwise_annotation(fig: Figure, text: str) -> bool:
+    """Draw pairwise statistics annotation box below the figure.
+
+    This function adds extra height to the figure to accommodate the annotation
+    text box, ensuring it doesn't overlap with the plot area.
 
     Args:
-        ax: Matplotlib axes to annotate.
+        fig: Matplotlib figure to annotate.
         text: Annotation text to display.
+
+    Returns:
+        True if an annotation was added, False otherwise.
     """
     if not text:
-        return
-    ax.text(
-        0.99,
-        0.01,
+        return False
+
+    # Count lines to determine height needed (more lines = more algorithms compared)
+    n_lines = text.count("\n") + 1
+
+    # Calculate extra height needed: base padding + per-line height
+    # Each line needs approximately 0.25 inches, plus base padding of 0.5 inches
+    extra_height_inches = 0.5 + (n_lines * 0.22)
+
+    # Get current figure size and increase height
+    current_size = fig.get_size_inches()
+    new_height = current_size[1] + extra_height_inches
+    fig.set_size_inches(current_size[0], new_height)
+
+    # Calculate the fraction of the figure that should be reserved for the annotation
+    # This ensures the axes don't extend into the annotation area
+    annotation_fraction = extra_height_inches / new_height
+
+    # Adjust subplot to make room at bottom - leave space for the annotation box
+    fig.subplots_adjust(bottom=annotation_fraction + 0.08)
+
+    # Place text in the reserved bottom area
+    # Position it centered in the annotation space, right-aligned horizontally
+    text_y_position = (annotation_fraction - 0.02) / 2  # Center in the annotation space
+    fig.text(
+        0.98,
+        text_y_position,
         text,
-        transform=ax.transAxes,
         ha="right",
-        va="bottom",
+        va="center",
         fontsize=8,
-        bbox={"boxstyle": "round,pad=0.3", "facecolor": "white", "alpha": 0.85},
+        bbox={"boxstyle": "round,pad=0.4", "facecolor": "lightyellow", "alpha": 0.85, "edgecolor": "gray"},
     )
+    return True
 
 
 def _time_series_band(
@@ -316,6 +345,7 @@ def _finalize_figure(
     fig: Figure,
     save_path: str | None = None,
     show: bool = True,
+    has_bottom_annotation: bool = False,
 ):
     """Save and/or render figure with consistent behavior.
 
@@ -323,8 +353,10 @@ def _finalize_figure(
         fig: Matplotlib Figure to finalize.
         save_path: Path to save the figure. Creates parent directories if needed.
         show: Whether to display the figure interactively.
+        has_bottom_annotation: If True, skip tight_layout to preserve bottom annotation spacing.
     """
-    fig.tight_layout()
+    if not has_bottom_annotation:
+        fig.tight_layout()
 
     if save_path:
         Path(save_path).parent.mkdir(parents=True, exist_ok=True)
@@ -455,6 +487,7 @@ def plot_simple_regret_curves(
     ax.legend()
     ax.grid(True, alpha=0.3)
 
+    has_annotation = False
     if annotate_pairwise and budget_distributions:
         if comparison_budget is None:
             comparison_budget = max(budget_distributions.keys())
@@ -467,12 +500,12 @@ def plot_simple_regret_curves(
                 )
                 text = _pairwise_stats_text(dist_map, reference=reference, paired=paired_runs)
                 if text:
-                    _draw_pairwise_annotation(
-                        ax,
+                    has_annotation = _draw_pairwise_annotation(
+                        fig,
                         f"At budget={comparison_budget}\n{text}",
                     )
 
-    _finalize_figure(fig, save_path=save_path, show=show)
+    _finalize_figure(fig, save_path=save_path, show=show, has_bottom_annotation=has_annotation)
 
 
 def plot_simple_regret_boxplots(
@@ -527,6 +560,7 @@ def plot_simple_regret_boxplots(
     ax.grid(True, alpha=0.3, axis="y")
     plt.xticks(rotation=45, ha="right")
 
+    has_annotation = False
     if annotate_pairwise and algorithms:
         distributions = {alg: vals for alg, vals in zip(algorithms, data, strict=False)}
         ref = reference_algorithm
@@ -536,9 +570,9 @@ def plot_simple_regret_boxplots(
                 key=lambda name: float(np.mean(distributions[name])),
             )
         text = _pairwise_stats_text(distributions, reference=ref, paired=paired_runs)
-        _draw_pairwise_annotation(ax, text)
+        has_annotation = _draw_pairwise_annotation(fig, text)
 
-    _finalize_figure(fig, save_path=save_path, show=show)
+    _finalize_figure(fig, save_path=save_path, show=show, has_bottom_annotation=has_annotation)
 
 
 def plot_convergence_probability(
@@ -706,6 +740,7 @@ def plot_performance_profile(
     ax.legend()
     ax.grid(True, alpha=0.3)
 
+    has_annotation = False
     if annotate_pairwise and distributions:
         ref = reference_algorithm
         if ref is None:
@@ -714,9 +749,9 @@ def plot_performance_profile(
                 key=lambda name: float(np.mean(distributions[name])),
             )
         text = _pairwise_stats_text(distributions, reference=ref, paired=paired_runs)
-        _draw_pairwise_annotation(ax, text)
+        has_annotation = _draw_pairwise_annotation(fig, text)
 
-    _finalize_figure(fig, save_path=save_path, show=show)
+    _finalize_figure(fig, save_path=save_path, show=show, has_bottom_annotation=has_annotation)
 
 
 def plot_history(
@@ -1189,14 +1224,15 @@ def plot_ttfo_distribution(
     ax.grid(True, alpha=0.3)
     ax.legend()
 
+    has_annotation = False
     if annotate_pairwise and ttfo_map:
         ref = reference_algorithm
         if ref is None:
             ref = min(ttfo_map.keys(), key=lambda name: float(np.mean(ttfo_map[name])))
         text = _pairwise_stats_text(ttfo_map, reference=ref, paired=paired_runs)
-        _draw_pairwise_annotation(ax, text)
+        has_annotation = _draw_pairwise_annotation(fig, text)
 
-    _finalize_figure(fig, save_path=save_path, show=show)
+    _finalize_figure(fig, save_path=save_path, show=show, has_bottom_annotation=has_annotation)
 
 
 def plot_inverse_runtime_profile_surface(
