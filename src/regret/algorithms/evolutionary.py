@@ -1,17 +1,42 @@
+"""Evolutionary algorithms for pseudo-boolean optimization.
+
+This module implements evolutionary algorithms that maintain populations of
+candidate solutions and use mutation operators to explore the search space.
+These algorithms are widely used baselines in the theory of evolutionary
+computation.
+
+Algorithms:
+    OnePlusOneEA: (1+1)-Evolutionary Algorithm with standard bit mutation.
+    MuPlusLambdaEA: (μ+λ)-Evolutionary Algorithm with population-based search.
+"""
+
+from collections.abc import Callable
+
 import numpy as np
 
 from regret.core.base import Algorithm, Problem
 
 
 class OnePlusOneEA(Algorithm):
-    """(1+1)-Evolutionary Algorithm with standard bit mutation."""
+    """(1+1)-Evolutionary Algorithm with standard bit mutation.
+
+    Maintains a single candidate solution and creates one offspring per
+    iteration via bitwise mutation. The offspring replaces the parent
+    if it is at least as fit. Includes the EA_{0->1} speedup from
+    Doerr & Pinto (2018) to ensure at least one bit flip per mutation.
+
+    Attributes:
+        mutation_rate: Probability of flipping each bit (defaults to 1/n).
+        current: Binary array representing the current candidate solution.
+        current_value: Fitness value of the current solution.
+    """
 
     def __init__(
         self,
         problem: Problem,
         mutation_rate: float | None = None,
         seed: int | None = None,
-        callback=None,
+        callback: Callable[[int, float, float, np.ndarray], None] | None = None,
     ):
         """Initialize (1+1)-EA with mutation rate.
 
@@ -64,7 +89,19 @@ class OnePlusOneEA(Algorithm):
 
 
 class MuPlusLambdaEA(Algorithm):
-    """(μ+λ)-Evolutionary Algorithm."""
+    """(μ+λ)-Evolutionary Algorithm.
+
+    Maintains a population of μ parent solutions and generates λ offspring
+    per generation via mutation. The best μ individuals from the combined
+    parent and offspring populations survive to the next generation.
+
+    Attributes:
+        mu: Parent population size.
+        lmbda: Number of offspring generated per generation.
+        mutation_rate: Probability of flipping each bit (defaults to 1/n).
+        population: List of binary arrays representing current parent solutions.
+        fitness: List of fitness values corresponding to population members.
+    """
 
     def __init__(
         self,
@@ -73,7 +110,7 @@ class MuPlusLambdaEA(Algorithm):
         lmbda: int = 10,
         mutation_rate: float | None = None,
         seed: int | None = None,
-        callback=None,
+        callback: Callable[[int, float, float, np.ndarray], None] | None = None,
     ):
         """Initialize (μ+λ)-EA with population and mutation settings.
 

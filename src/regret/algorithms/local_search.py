@@ -1,10 +1,39 @@
+"""Local search algorithms for pseudo-boolean optimization.
+
+This module implements local search algorithms that explore the search space
+by iteratively modifying candidate solutions. These algorithms are simple yet
+effective baselines for benchmarking on binary optimization problems.
+
+Algorithms:
+    RLS: Randomized Local Search (single bit-flip hill climber).
+    RLSExploration: RLS with configurable exploration probability.
+"""
+
+from collections.abc import Callable
+
+import numpy as np
+
 from regret.core.base import Algorithm, Problem
 
 
 class RLS(Algorithm):
-    """Randomized Local Search / Stochastic Hill Climber."""
+    """Randomized Local Search (Stochastic Hill Climber).
 
-    def __init__(self, problem: Problem, seed: int | None = None, callback=None):
+    A simple local search that flips one random bit per iteration and accepts
+    the neighbor if it is at least as good as the current solution. This is
+    one of the simplest randomized optimization algorithms.
+
+    Attributes:
+        current: Binary array representing the current candidate solution.
+        current_value: Fitness value of the current solution.
+    """
+
+    def __init__(
+        self,
+        problem: Problem,
+        seed: int | None = None,
+        callback: Callable[[int, float, float, np.ndarray], None] | None = None,
+    ):
         """Initialize RLS with optional RNG seed.
 
         Args:
@@ -45,9 +74,17 @@ class RLS(Algorithm):
 
 
 class RLSExploration(Algorithm):
-    """
-    RLS with exploration probability.
-    Hoos, H. H., & Stützle, T. (2004). Stochastic Local Search: Foundations and Applications. Chapter 2, Section 2.2.
+    """RLS with exploration probability.
+
+    Extends RLS by occasionally accepting non-improving moves with probability
+    epsilon, allowing escape from local optima. Based on Hoos & Stützle (2004),
+    "Stochastic Local Search: Foundations and Applications", Chapter 2.
+
+    Attributes:
+        base_epsilon: Initial exploration probability (defaults to 1/n).
+        decay: Whether to decay epsilon over evaluations.
+        current: Binary array representing the current candidate solution.
+        current_value: Fitness value of the current solution.
     """
 
     def __init__(
@@ -56,7 +93,7 @@ class RLSExploration(Algorithm):
         epsilon: float | None = None,
         decay: bool = True,
         seed: int | None = None,
-        callback=None,
+        callback: Callable[[int, float, float, np.ndarray], None] | None = None,
     ):
         """Initialize exploratory RLS with exploration rate settings.
 
@@ -85,22 +122,22 @@ class RLSExploration(Algorithm):
         """Perform one iteration combining exploration and local search."""
         epsilon = self.base_epsilon / self.evaluations if self.decay else self.base_epsilon
 
-        neighbour = self.current.copy()
+        neighbor = self.current.copy()
         i = self.rng.integers(0, self.problem.n)
-        neighbour[i] = 1 - neighbour[i]
+        neighbor[i] = 1 - neighbor[i]
 
-        neighbour_value = self.problem.evaluate(neighbour)
+        neighbor_value = self.problem.evaluate(neighbor)
         self.evaluations += 1
 
         if self.rng.random() < epsilon:
-            # Uninformed Random Walk step: move to a random neighbour unconditionally
+            # Uninformed Random Walk step: move to a random neighbor unconditionally
             # Accept without fitness gate
-            self.current = neighbour
-            self.current_value = neighbour_value
+            self.current = neighbor
+            self.current_value = neighbor_value
         else:
-            if neighbour_value >= self.current_value:
-                self.current = neighbour
-                self.current_value = neighbour_value
+            if neighbor_value >= self.current_value:
+                self.current = neighbor
+                self.current_value = neighbor_value
 
         if self.current_value > self.best_value:
             self.best_value = self.current_value

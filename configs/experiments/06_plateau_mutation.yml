@@ -18,7 +18,7 @@ suite:
     - Notes: 
       - mu_3-by-n and mu_7-by-n removed: neither has
         theoretical motivation and they produce curves between the already-tested
-        neighbours without testing a distinct hypothesis; 
+        neighbors without testing a distinct hypothesis; 
       - SA-Log-d_4.0 added as the third algorithm class; 
       - Algorithm set now matches suite 04 and suite 05 for direct cross-suite 
         comparison on identical k values.
