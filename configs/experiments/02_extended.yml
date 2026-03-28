@@ -78,6 +78,7 @@ problems:
     # Combinatorial
   - name: "Petersen-3-Color"
     class: "PetersenColoringMaxSAT"
+    budget_for_plots: 5000
     params: {}
 
 algorithms:

@@ -131,10 +131,14 @@ plotting:
     regret_boxplots:
       enabled: true
       filename: "regret_boxplot_b{budget}.pdf"
+      annotate_pairwise: true
+      reference_algorithm: "RLS"
 
     performance_profile:
       enabled: true
       filename: "performance_profile_b{budget}.pdf"
+      annotate_pairwise: true
+      reference_algorithm: "RLS"
 
     history_current:
       enabled: false
@@ -191,6 +195,8 @@ plotting:
     ttfo_distribution:
       enabled: true
       filename: "history_ttfo_markers.pdf"
+      annotate_pairwise: true
+      reference_algorithm: "RLS"
 
     inverse_runtime_profile_surface:
       enabled: false

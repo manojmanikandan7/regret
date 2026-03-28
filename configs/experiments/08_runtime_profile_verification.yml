@@ -140,6 +140,8 @@ plotting:
     ttfo_distribution:
       enabled: true
       filename: "history_ttfo_markers.pdf"
+      annotate_pairwise: true
+      reference_algorithm: "RLS"
 
     inverse_runtime_profile_surface:
       enabled: true
