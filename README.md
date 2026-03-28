@@ -12,7 +12,7 @@ Classical theoretical analysis of randomised search heuristics has long relied o
 - Difficult to apply empirically across diverse problem landscapes;
 - Primarily suited to convergence-time arguments rather than characterising *quality* of intermediate solutions.
 - A good indicator of bounds to sample (or 'drift' toward) the optimum;
-  however, it does not provide information on the asymtotic performance of the algorithm
+  however, it does not provide information on the asymptotic performance of the algorithm
 
 This project investigates whether **regret**, a metric borrowed from reinforcement learning (utilized in online learning and bandits), can serve as a practical, empirically-grounded alternative for characterising algorithm behaviour across the same domain. Three forms of regret are tracked:
 
@@ -53,7 +53,45 @@ Or with pip:
 pip install -e .
 ```
 
-Core dependencies: `numpy`, `scipy`, `matplotlib`, `pandas`, `pyyaml`, `jsonschema`, `tqdm`.
+Core dependencies: `numpy`, `scipy`, `matplotlib`, `pandas`, `pyyaml`, `jsonschema`, `tqdm`, `typer`, `networkx`.  
+Jupyter support: `jupyter`, `ipykernel`, `ipympl`, `ipywidgets`.
+
+---
+
+## Development & Testing
+
+The project uses [`just`](https://github.com/casey/just) for common development tasks. Key commands:
+
+```bash
+# Type checking
+just tc                    # Full type check with ty
+just type-check-concise    # One diagnostic per line
+just type-check-watch      # Watch mode - rechecks on file changes
+
+# Testing
+just test                  # Run all tests
+just test tests/test_algorithms.py              # Run specific test file
+just test tests/test_algorithms.py::TestRLS     # Run specific test class
+just pdb tests/test_algorithms.py               # Run with debugger on failure
+
+# Quality assurance
+just qa                    # Full QA suite: format + lint + type-check + test
+just coverage              # Run tests with coverage report
+
+# Documentation
+just docs-serve            # Serve docs locally with live reload
+just docs-build            # Build docs (strict mode)
+
+# Utilities
+just clean                 # Remove build/test artifacts
+just build                 # Build package for distribution
+```
+
+For a full list of available commands, run:
+
+```bash
+just --list
+```
 
 ---
 
@@ -62,13 +100,13 @@ Core dependencies: `numpy`, `scipy`, `matplotlib`, `pandas`, `pyyaml`, `jsonsche
 All experiments are driven through a single CLI entry point:
 
 ```bash
-run_experiment <command> <config.yaml> [<config2.yaml> ...]
+run_experiment <command> <config.yml> [<config2.yml> ...]
 ```
 
 Or equivalently:
 
 ```bash
-python -m regret <command> <config.yaml> [<config2.yaml> ...]
+python -m regret <command> <config.yml> [<config2.yml> ...]
 ```
 
 ### Commands
@@ -79,27 +117,37 @@ python -m regret <command> <config.yaml> [<config2.yaml> ...]
 | `plan <config...>` | Print dry-run summaries: problem/algorithm combinations, total runs, budgets |
 | `run <config...> [--no-plot]` | Execute one or more experiment configs and optionally skip plot generation |
 | `analyze <config...>` | Regenerate plots from previously saved JSON results for one or more configs |
+| `table <config...> [--format latex\|csv\|markdown]` | Generate summary tables from existing results; defaults to LaTeX format |
 
 ### Example
 
 ```bash
 # Validate one config
-run_experiment validate configs/experiments/01_baseline.yaml
+run_experiment validate configs/experiments/01_baseline.yml
 
 # Validate multiple configs in sequence
-run_experiment validate configs/experiments/01_baseline.yaml configs/experiments/02_extended.yaml
+run_experiment validate configs/experiments/01_baseline.yml configs/experiments/02_extended.yml
 
 # Preview execution plan
-run_experiment plan configs/experiments/01_baseline.yaml
+run_experiment plan configs/experiments/01_baseline.yml
 
 # Run full experiment suites for multiple configs
-run_experiment run configs/experiments/01_baseline.yaml configs/experiments/02_extended.yaml
+run_experiment run configs/experiments/01_baseline.yml configs/experiments/02_extended.yml
 
 # Run while skipping plot generation
-run_experiment run configs/experiments/01_baseline.yaml --no-plot
+run_experiment run configs/experiments/01_baseline.yml --no-plot
 
 # Regenerate plots only (no re-running)
-run_experiment analyze configs/experiments/01_baseline.yaml
+run_experiment analyze configs/experiments/01_baseline.yml
+
+# Generate summary tables in LaTeX format (default)
+run_experiment table configs/experiments/01_baseline.yml
+
+# Generate summary tables in CSV format
+run_experiment table configs/experiments/01_baseline.yml --format csv
+
+# Generate summary tables in Markdown format
+run_experiment table configs/experiments/01_baseline.yml --format markdown
 ```
 
 ---
@@ -110,41 +158,50 @@ run_experiment analyze configs/experiments/01_baseline.yaml
 regret/
 ├── configs/
 │   └── experiments/
-│       ├── 01_baseline.yaml          # Core pseudo-boolean benchmark suite
-│       └── 02_extended_base.yaml     # Extended suite: combinatorial + NK landscapes
+│       ├── 01_baseline.yml               # Core pseudo-boolean benchmark suite
+│       ├── 02_extended.yml               # Extended suite: combinatorial + NK landscapes
+│       ├── 03_nk_landscape.yml           # NK landscape exploration
+│       ├── 04_trap_mutation.yml          # Mutation rate analysis on Trap
+│       ├── 05_jump_mutation.yml          # Mutation rate analysis on Jump
+│       └── ...                           # Additional experiment suites
 │
 ├── results/
-│   ├── raw/                          # JSON output from each experiment run
-│   └── figures/                      # Generated PDF plots, organised by suite/problem/n
+│   ├── raw/                              # JSON output from each experiment run
+│   └── figures/                          # Generated PDF plots, organised by suite/problem/n
 │
 └── src/regret/
+    ├── cli.py                            # Typer CLI entry point (single or multi-config)
+    ├── _types.py                         # Centralized type aliases and TypedDicts
+    │
     ├── core/
-    │   ├── base.py                   # Abstract base classes: Problem, Algorithm
-    │   └── metrics.py                # Regret computations, trajectory helpers
+    │   ├── base.py                       # Abstract base classes: Problem, Algorithm
+    │   └── metrics.py                    # Regret computations, trajectory helpers
     │
     ├── problems/
-    │   ├── pseudo_boolean.py         # OneMax, LeadingOnes, Jump, TwoMax, BinVal, Trap, Plateau, HIFF
-    │   ├── combinatorial.py          # MaxkSAT
-    │   └── landscapes.py             # NK-Landscape
+    │   ├── pseudo_boolean.py             # OneMax, LeadingOnes, Jump, TwoMax, BinVal, Trap, Plateau, HIFF
+    │   ├── combinatorial.py              # MaxkSAT, PetersenColoringMaxSAT
+    │   └── landscapes.py                 # NKLandscape
     │
     ├── algorithms/
-    │   ├── local_search.py           # RLS, RLSExploration
-    │   ├── evolutionary.py           # OnePlusOneEA, MuPlusLambdaEA
-    │   └── annealing.py              # SimulatedAnnealing + cooling schedules
+    │   ├── local_search.py               # RLS, RLSExploration
+    │   ├── evolutionary.py               # OnePlusOneEA, MuPlusLambdaEA
+    │   └── annealing.py                  # SimulatedAnnealing + cooling schedules
     │
     ├── analysis/
-    │   ├── plotting.py               # All matplotlib-based plot functions
-    │   ├── statistics.py             # Mann-Whitney U, Wilcoxon, Cohen's d, bootstrap CI
-    │   └── tables.py                 # Summary tables + LaTeX export
+    │   ├── plotting.py                   # All matplotlib-based plot functions
+    │   ├── statistics.py                 # Mann-Whitney U, Wilcoxon, Cohen's d, bootstrap CI
+    │   └── tables.py                     # Summary tables + LaTeX/CSV/Markdown export
+    │
+    ├── gui/
+    │   └── ...                           # Interactive trajectory visualization tools
     │
     └── experiments/
-        ├── __init__.py               # PROBLEM_REGISTRY, ALGORITHM_REGISTRY, COOLING_REGISTRY
-        ├── schema.py                 # JSON Schema definition for YAML configs
-        ├── validation.py             # Schema + semantic validation pipeline
-        ├── orchestration.py          # Execution planning and dispatch
-        ├── runner.py                 # ExperimentRunner (serial/parallel), result persistence
-        ├── utils.py                  # Config parsing, slug generation, plot dispatch
-        └── cli.py                    # Typer CLI entry point (single or multi-config)
+        ├── __init__.py                   # PROBLEM_REGISTRY, ALGORITHM_REGISTRY, COOLING_REGISTRY
+        ├── schema.py                     # JSON Schema definition for YAML configs
+        ├── validation.py                 # Schema + semantic validation pipeline
+        ├── orchestration.py              # Execution planning and dispatch
+        ├── runner.py                     # ExperimentRunner (serial/parallel), result persistence
+        └── utils.py                      # Config parsing, slug generation, plot dispatch
 ```
 
 ---
@@ -164,7 +221,8 @@ suite:
   name: "my_experiment"
   runs: 50                        # Independent runs per (algorithm, problem, budget) triple
   mode: "full"                    # "full" saves trajectories; "lite" saves stats only
-  parallel: true
+  parallel: true                  # Enable parallel execution with ProcessPoolExecutor
+  profile: false                  # Enable runtime profiles for intermediate fitness levels 
   budgets: [200, 400, ..., 2000]
   output:
     raw_root: "results/raw"
@@ -173,6 +231,7 @@ suite:
 problems:
   - name: "Jump-3"
     class: "Jump"                 # Must be in PROBLEM_REGISTRY
+    budget_for_plots: 2000        # Budget to use for per-budget plots (optional)
     params:
       n: 100
       k: 3
@@ -196,12 +255,38 @@ algorithms:
 plotting:
   enabled: true
   plots:
-    regret_curves:
+    regret_instantaneous:
       enabled: true
-      filename: "regret_curves.pdf"
-      log_scale: true
+      filename: "history_regret_instantaneous.pdf"
+      series: "instantaneous"
+      track_incumbent: false      # Use current solution value at each step
+      log_y: true
+    
+    regret_instantaneous_best:
+      enabled: true
+      filename: "history_regret_instantaneous_best.pdf"
+      series: "instantaneous"
+      track_incumbent: true       # Use best-so-far (incumbent) value at each step
+      log_y: true
     # ... (see configs/ for full reference)
 ```
+
+#### Regret Computation: `track_incumbent` Parameter
+
+The `track_incumbent` parameter controls which solution value is used when computing regret at each evaluation step:
+
+- **`track_incumbent: false`** (default) - Use the **current solution** value at time `t`:
+  - Regret = `f* - f(x_t)`
+  - Shows how far the *current* solution is from optimal
+  - Reflects exploration behavior and temporary degradations
+
+- **`track_incumbent: true`** - Use the **best-so-far (incumbent)** value up to time `t`:
+  - Regret = `f* - f(best_t)`
+  - Shows how far the *best solution found so far* is from optimal
+  - Equivalent to simple regret trajectory over time
+  - Monotonically non-increasing for maximization problems
+
+**Plot naming convention:** Plots with `_best` suffix use `track_incumbent: true` by default; others default to `false`.
 
 ### Key Design Decisions
 
@@ -234,6 +319,7 @@ plotting:
 | Plateau-k | `Plateau` | OneMax with a flat plateau near the top | n |
 | HIFF | `HIFF` | Hierarchical if-and-only-if (n must be power of 2) | n·(log₂n + 1) |
 | MaxkSAT | `MaxkSAT` | Random k-SAT clause satisfaction (maximisation) | m (all clauses) |
+| PetersenColoringMaxSAT | `PetersenColoringMaxSAT` | 3-coloring MaxSAT on Petersen graph (specialized) | 15 clauses |
 | NK-k | `NKLandscape` | Tunable-ruggedness fitness landscape | exhaustive search (n <= 20) |
 
 ---
