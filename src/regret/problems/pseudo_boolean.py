@@ -1,13 +1,36 @@
+"""Classic pseudo-boolean optimization problems.
+
+This module defines standard benchmark problems for evaluating optimization
+algorithms on binary search spaces. These problems are widely used in the
+theory of evolutionary computation and have well-understood properties.
+
+Problems:
+    OneMax: Maximize the count of ones (simple unimodal baseline).
+    LeadingOnes: Maximize the leading-ones prefix length.
+    Jump: OneMax with a fitness valley near the optimum.
+    TwoMax: Two global optima at all-zeros and all-ones.
+    BinVal: Binary value with exponential bit weights.
+    Trap: Deceptive function with local optimum at all-zeros.
+    Plateau: OneMax with a flat fitness region near optimum.
+    HIFF: Hierarchical If-and-only-If function with multi-level structure.
+"""
+
 import numpy as np
 
 from regret.core.base import Problem
 
 
 class OneMax(Problem):
-    """
-    Count number of ones in binary string.
+    """Count the number of ones in a binary string.
 
-    Droste, S., Jansen, T., & Wegener, I. (2002). On the analysis of the (1+1) evolutionary algorithm.
+    The simplest pseudo-boolean benchmark: fitness equals the number of 1-bits.
+    Unimodal with smooth gradient toward the all-ones optimum. Used as a
+    baseline to verify algorithm correctness and basic performance.
+
+    Reference:
+        Droste, S., Jansen, T. and Wegener, I., 2002.
+        On the analysis of the (1+1) evolutionary algorithm.
+        Theoretical Computer Science, 276(1-2), pp.51-81.
     """
 
     def evaluate(self, x: np.ndarray) -> float:
@@ -27,7 +50,12 @@ class OneMax(Problem):
 
 
 class LeadingOnes(Problem):
-    """Count leading ones before first zero."""
+    """Count leading ones before the first zero.
+
+    Fitness equals the length of the contiguous prefix of 1-bits. Requires
+    bits to be set in order from left to right, making it harder than OneMax
+    for many algorithms due to sequential dependencies.
+    """
 
     def evaluate(self, x: np.ndarray) -> float:
         """Count leading ones until the first zero.
@@ -49,11 +77,19 @@ class LeadingOnes(Problem):
 
 
 class Jump(Problem):
-    """
-    Jump function with gap of size k.
+    """Jump function with a fitness gap of size k.
 
-    [n - k + 1, n] represents the "valley" to climb to reach maxima (local: n - k + 1, global: n + k)
-    Droste, S., Jansen, T., & Wegener, I. (2002). On the analysis of the (1+1) evolutionary algorithm.
+    Creates a valley in the fitness landscape near the optimum. Solutions with
+    ones in the range [n-k+1, n-1] have reduced fitness, requiring algorithms
+    to "jump" across k bits simultaneously to reach the global optimum.
+
+    Attributes:
+        k: Gap width defining the jump valley.
+
+    Reference:
+        Droste, S., Jansen, T. and Wegener, I., 2002.
+        On the analysis of the (1+1) evolutionary algorithm.
+        Theoretical Computer Science, 276(1-2), pp.51-81.
     """
 
     def __init__(self, n: int, k: int = 3):
@@ -86,9 +122,22 @@ class Jump(Problem):
         """Return the global optimum value."""
         return float(self.n + self.k)
 
+    def get_worst_value(self) -> float:
+        """Return the worst possible fitness value.
+
+        The worst case for Jump occurs at n-1 ones (just before the optimum),
+        where the fitness is n - (n-1) = 1.
+        """
+        return 1.0
+
 
 class TwoMax(Problem):
-    """Two global optima: all zeros or all ones."""
+    """Two global optima: all zeros or all ones.
+
+    Bimodal fitness landscape where both the all-zeros and all-ones bitstrings
+    are global optima. Tests an algorithm's ability to commit to one basin of
+    attraction rather than oscillating between them.
+    """
 
     def evaluate(self, x: np.ndarray) -> float:
         """Evaluate fitness as distance to either all-ones or all-zeros optimum.
@@ -108,7 +157,12 @@ class TwoMax(Problem):
 
 
 class BinVal(Problem):
-    """Binary value: weighted sum with exponential weights."""
+    """Binary value: weighted sum with exponential weights.
+
+    Treats the bitstring as a binary number with position i having weight 2^i.
+    Creates a highly non-uniform fitness landscape where later bits contribute
+    exponentially more to fitness than earlier bits.
+    """
 
     def evaluate(self, x: np.ndarray) -> float:
         """Compute weighted binary value of the bitstring given by x.
@@ -131,13 +185,21 @@ class BinVal(Problem):
 
 
 class Trap(Problem):
-    """
-    Trap function with parameter k.
+    """Trap function with deceptive attractor.
 
-    Deceptive attractor at all zeros (value = n - k), global optimum at all
-    ones (value = n), trough at u (i.e., number of ones) = n - k (value = 0). k = 1 is the classical
-    fully deceptive trap: f(u) = n-1-u for u < n, f(n) = n.
-    Deb & Goldberg, FOGA 1992
+    A deceptive function where the local gradient points toward the all-zeros
+    bitstring (deceptive attractor), but the global optimum is at all-ones.
+    The parameter k controls the width of the deceptive region.
+
+    With k=1, this is the classical fully deceptive trap: f(u) = n-1-u for
+    u < n, f(n) = n, where u is the number of ones.
+
+    Attributes:
+        k: Width of the deceptive region; slope change occurs at n-k ones.
+
+    Reference:
+        Deb, K. and Goldberg, D.E., 1993. Analyzing deception in trap functions.
+        In Foundations of genetic algorithms (Vol. 2, pp. 93-108). Elsevier.
     """
 
     def __init__(self, n: int, k: int = 1):
@@ -170,11 +232,14 @@ class Trap(Problem):
 
 
 class Plateau(Problem):
-    """
-    OneMax with a flat region.
+    """OneMax with a flat fitness region near the optimum.
 
-    Returns the number of ones, but creates a plateau (flat fitness)
-    when the number of ones is between (n - k) and (n - 1).
+    Returns the number of ones, but creates a plateau (constant fitness) when
+    the count is between (n-k) and (n-1). Tests an algorithm's ability to
+    navigate neutral fitness landscapes via random drift.
+
+    Attributes:
+        k: Width of the flat fitness region before the optimum.
     """
 
     def __init__(self, n: int, k: int = 3):
@@ -211,10 +276,14 @@ class Plateau(Problem):
 
 
 class HIFF(Problem):
-    """
-    Hierarchical If-and-only-If function.
+    """Hierarchical If-and-only-If function.
 
-    Rewards blocks of identical bits at multiple hierarchical levels.
+    Rewards blocks of identical bits at multiple hierarchical levels. At each
+    level, adjacent blocks of matching bits contribute additional fitness. The
+    global optimum is achieved when all bits are identical (all-zeros or
+    all-ones), creating a hierarchical structure that tests building-block
+    assembly.
+
     The problem size n must be a power of 2.
     """
 

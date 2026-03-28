@@ -1,5 +1,37 @@
+"""Runtime profile analysis for algorithm comparison.
+
+This module provides functions to compute and analyze inverse runtime profiles,
+which capture the probability of reaching fitness thresholds within given
+evaluation budgets. The tail-sum formula relates these profiles to expected
+cumulative regret.
+
+Key concepts:
+    - **Inverse Runtime Profile**: P(\\tau_v <= T) = probability of reaching fitness v by time T.
+    - **Tail-sum formula for expectations**: E[CR(T)] = Sum_{v=1}^{f*} Sum_{t'=1}^{T} [1 - P(\\tau_v <= t')]
+        for integer-valued fitness functions with unit increments (Work-in-progress for other functions).
+
+Type Aliases (imported from regret._types):
+    HistoryResults: Results dict keyed by algorithm name.
+    TimeGrid: 1D numpy array of evaluation time points.
+    FitnessLevels: 1D numpy array of fitness thresholds.
+    InverseProfiles: Dict with key algorithm name, value 2D numpy array P(\\tau_v <= T), shape (F, T).
+    EmpiricalCumulativeRegret: E[CR(T)] computed directly from trajectory averaging.
+    ProfileCumulativeRegret: E[CR(T)] derived via layer-cake from inverse profiles.
+
+Functions:
+    run_profile_analysis: Compute profiles and verify tail-sum relationship.
+"""
+
 import numpy as np
 
+from regret._types import (
+    EmpiricalCumulativeRegret,
+    FitnessLevels,
+    HistoryResults,
+    InverseProfiles,
+    ProfileCumulativeRegret,
+    TimeGrid,
+)
 from regret.core.metrics import (
     compute_inv_runtime_profile,
     cumulative_regret,
@@ -8,35 +40,37 @@ from regret.core.metrics import (
 
 
 def run_profile_analysis(
-    results: dict[str, list[dict]],
+    results: HistoryResults,
     f_star: float,
     budget: int,
-) -> tuple[
-    np.ndarray,
-    np.ndarray,
-    dict[str, np.ndarray],
-    dict[str, np.ndarray],
-    dict[str, np.ndarray],
-]:
+    max_time_grid_points: int = 10000,
+) -> tuple[TimeGrid, FitnessLevels, InverseProfiles, EmpiricalCumulativeRegret, ProfileCumulativeRegret]:
     """Analyze runtime profile and cumulative regret relationships.
 
-    Computes runtime inverse profiles P(\\tau_v <= T) for all fitness levels,
-    gets runtime profiles then derives expected cumulative regret via
-    layer-cake representation.
+    Computes inverse runtime profiles P(\\tau_v <= T) for all fitness levels,
+    then derives expected cumulative regret via the tail-sum representation.
 
     Args:
-        results: Algorithm name -> list of run dicts (must include 'trajectory' key).
+        results: Results keyed by algorithm name. Each value is a list of run
+            result dicts with 'trajectory' key containing a list of
+            (evaluation_index, current_value, best_value) tuples.
         f_star: Global optimum fitness value.
         budget: Maximum evaluation budget used to build the time grid.
+        max_time_grid_points: Maximum number of time grid points for large budgets.
+            Higher values improve accuracy but increase memory usage. For budgets
+            smaller than this value, every evaluation is included in the grid.
 
     Returns:
-        Tuple of (time_grid, fitness_levels, profiles, empirical_ecr, profile_ecr)
-        where:
-        - time_grid: Evaluation grid used for profile and regret calculations.
-        - fitness_levels: Fitness thresholds used for runtime profiles.
-        - inv_profiles: alg_name -> runtime inverse profile array [inv_profiles[f,t] = P(\\tau_f <= t)] (F, T)
-        - empirical_ecr: alg_name -> E[CR(T)] from direct cumulative regret
-        - profile_ecr: alg_name -> E[CR(T)] derived from inverse runtime profile
+        Tuple of (time_grid, fitness_levels, inv_profiles, empirical_ecr, profile_ecr):
+            - time_grid: 1D array of evaluation time points, shape (T,).
+            - fitness_levels: 1D array of fitness thresholds, shape (F,).
+            - inv_profiles: Dict mapping algorithm name to inverse runtime profile
+              array of shape (F, T). Entry [f, t] = P(\\tau_v <= T), the probability
+              that fitness level fitness_levels[f] was reached by time_grid[t].
+            - empirical_ecr: Dict mapping algorithm name to E[CR(T)] array of
+              shape (T,), computed by direct averaging of cumulative regrets.
+            - profile_ecr: Dict mapping algorithm name to E[CR(T)] array of
+              shape (T,), derived from inverse runtime profile via tail-sum formula.
     """
     # Build grids
     # Time grid: every evaluation from 1 to budget
@@ -93,14 +127,15 @@ def run_profile_analysis(
         inv_profile = compute_inv_runtime_profile(trajectories, fitness_levels, time_grid)
         inv_profiles[alg_name] = inv_profile
 
-        # Derive E[CR(T)] from inverse runtime profile via layer-cake representation
+        # Derive E[CR(T)] from inverse runtime profile via tail-sum representation
         profile_ecr[alg_name] = inv_profile_to_expected_cumulative_regret(inv_profile, fitness_levels, time_grid)
 
-        # Compute E[CR(T)] directly from per-run cumulative regrets (with use_best=True, for best-so-far solutions)
+        # Compute E[CR(T)] directly from per-run cumulative regrets
+        # (with track_incumbent=True for best-so-far solutions)
         # Interpolate each run's CR onto the shared time_grid
         cr_matrix = []
         for traj in trajectories:
-            cr_points = cumulative_regret(traj, f_star, use_best=True)
+            cr_points = cumulative_regret(traj, f_star, track_incumbent=True)
             if not cr_points:
                 continue
             t_vals = np.array([t for t, _ in cr_points])

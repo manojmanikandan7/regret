@@ -34,13 +34,26 @@ app = typer.Typer(help="Regret experiment pipeline")
 
 
 def _print_config_header(config: Path, index: int, total: int) -> None:
-    """Print a per-config banner when multiple configs are provided."""
+    """Print a per-config banner when multiple configs are provided.
+
+    Args:
+        config: Path to the config file being processed.
+        index: 1-based index of this config in the batch.
+        total: Total number of configs in the batch.
+    """
     if total > 1:
         print(f"\n[{index}/{total}] Config: {config}")
 
 
 def _validate_single(config_path: Path) -> bool:
-    """Validate a single config file."""
+    """Validate a single config file and print summary.
+
+    Args:
+        config_path: Path to the YAML config file.
+
+    Returns:
+        True if validation succeeded, False otherwise.
+    """
     try:
         config = validate_config(config_path)
         print(f"Config validation passed: {config_path}")
@@ -55,7 +68,14 @@ def _validate_single(config_path: Path) -> bool:
 
 
 def _plan_single(config_path: Path) -> bool:
-    """Display execution plan for a single config file."""
+    """Display execution plan for a single config file.
+
+    Args:
+        config_path: Path to the YAML config file.
+
+    Returns:
+        True if planning succeeded, False otherwise.
+    """
     try:
         config = validate_config(config_path)
         plan = plan_execution(config)
@@ -114,7 +134,15 @@ def _plan_single(config_path: Path) -> bool:
 
 
 def _run_single(config_path: Path, *, no_plot: bool) -> bool:
-    """Execute experiments for a single config file."""
+    """Execute experiments for a single config file.
+
+    Args:
+        config_path: Path to the YAML config file.
+        no_plot: If True, skip plot generation after experiment execution.
+
+    Returns:
+        True if execution succeeded, False otherwise.
+    """
     try:
         print(f"Loading config: {config_path}")
         config = validate_config(config_path)
@@ -137,7 +165,14 @@ def _run_single(config_path: Path, *, no_plot: bool) -> bool:
 
 
 def _analyze_single(config_path: Path) -> bool:
-    """Regenerate plots for a single config file."""
+    """Regenerate plots for a single config file.
+
+    Args:
+        config_path: Path to the YAML config file.
+
+    Returns:
+        True if analysis succeeded, False otherwise.
+    """
     try:
         config = validate_config(config_path)
         analyze_results(config)
@@ -155,7 +190,14 @@ def _analyze_single(config_path: Path) -> bool:
 
 
 def _exit_on_failures(failures: int) -> None:
-    """Return non-zero exit code when any config command fails."""
+    """Return non-zero exit code when any config command fails.
+
+    Args:
+        failures: Number of config files that failed processing.
+
+    Raises:
+        typer.Exit: With code 1 if any failures occurred.
+    """
     if failures > 0:
         raise typer.Exit(code=1)
 

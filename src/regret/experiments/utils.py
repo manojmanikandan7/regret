@@ -1,15 +1,36 @@
-"""
-Some utilities used for parsing the config YAML files, and handling plotting, etc.
+"""Utilities for parsing config files and handling experiment orchestration.
 
-Note: These utilities respect the schema given by `./schema.py` for parsing the configuration.
+This module provides helper functions and dataclasses for parsing YAML config
+files, resolving algorithm/problem specifications, and generating plots.
+All utilities respect the schema defined in `./schema.py`.
+
+Dataclasses:
+    ProblemSpec: Specification for a problem instance.
+    AlgorithmSpec: Specification for an algorithm configuration.
+
+Functions:
+    parse_problems: Extract ProblemSpec list from config.
+    parse_algorithms: Extract AlgorithmSpec list from config.
+    generate_plots: Generate all configured plots for experiment results.
+
+Note:
+    Type aliases for experiment results (KeyedResults, HistoryResults, etc.)
+    are defined in regret._types.
 """
 
 import csv
-from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 
+from regret._types import (
+    EmpiricalCumulativeRegret,
+    HistoryResults,
+    KeyedResults,
+    ProfileCumulativeRegret,
+    TimeGrid,
+)
+from regret.algorithms.annealing import CoolingSchedule
 from regret.analysis.plotting import (
     plot_comparison_heatmap,
     plot_convergence_probability,
@@ -30,7 +51,14 @@ from . import ALGORITHM_REGISTRY, COOLING_REGISTRY, PROBLEM_REGISTRY
 
 @dataclass(frozen=True)
 class ProblemSpec:
-    """Specification for a problem instance."""
+    """Specification for a problem instance.
+
+    Attributes:
+        name: Display name for the problem.
+        class_name: Registry key for the problem class.
+        params: Constructor parameters for the problem.
+        budget_for_plots: Evaluation budget to use for budget-specific plots.
+    """
 
     name: str
     class_name: str
@@ -40,7 +68,13 @@ class ProblemSpec:
 
 @dataclass(frozen=True)
 class AlgorithmSpec:
-    """Specification for an algorithm configuration."""
+    """Specification for an algorithm configuration.
+
+    Attributes:
+        name: Display name for the algorithm.
+        class_name: Registry key for the algorithm class.
+        args: Nested dict with 'defaults' and 'by_problem' algorithm arguments.
+    """
 
     name: str
     class_name: str
@@ -48,7 +82,15 @@ class AlgorithmSpec:
 
 
 def safe_slug(text: str) -> str:
-    """Convert text to filesystem-safe slug."""
+    """Convert text to a filesystem-safe slug.
+
+    Args:
+        text: Input string to convert.
+
+    Returns:
+        Lowercase string with spaces, parentheses, and special characters
+        replaced with underscores or removed.
+    """
     replacements = [
         (" ", "_"),
         ("+", "plus"),
@@ -68,7 +110,16 @@ def is_plot_enabled(
     plot_key: str,
     default: bool = True,
 ) -> bool:
-    """Return whether a plot is enabled in config with a default fallback."""
+    """Check whether a plot type is enabled in the configuration.
+
+    Args:
+        plots_cfg: Plotting configuration dictionary.
+        plot_key: Key identifying the plot type.
+        default: Default value if key is missing or malformed.
+
+    Returns:
+        True if the plot is enabled, False otherwise.
+    """
     if plot_key not in plots_cfg:
         return default
     cfg = plots_cfg[plot_key]
@@ -82,7 +133,16 @@ def get_plot_filename(
     plot_key: str,
     default: str,
 ) -> str:
-    """Return configured filename for a plot key or a safe default."""
+    """Get the configured filename for a plot type.
+
+    Args:
+        plots_cfg: Plotting configuration dictionary.
+        plot_key: Key identifying the plot type.
+        default: Default filename if not configured.
+
+    Returns:
+        Configured filename string, or the default.
+    """
     if plot_key not in plots_cfg:
         return default
     cfg = plots_cfg[plot_key]
@@ -93,7 +153,15 @@ def get_plot_filename(
 
 
 def merge_plot_title(prefix: str | None, subject: str) -> str:
-    """Compose a plot title from optional prefix and subject."""
+    """Compose a plot title from optional prefix and subject.
+
+    Args:
+        prefix: Optional title prefix (e.g., problem name).
+        subject: Main title subject.
+
+    Returns:
+        Combined title string with ": " separator if both parts exist.
+    """
     if not prefix:
         return subject
     if not subject:
@@ -102,7 +170,16 @@ def merge_plot_title(prefix: str | None, subject: str) -> str:
 
 
 def deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
-    """Recursively merge override into base, returning a new dict."""
+    """Recursively merge override dict into base dict.
+
+    Args:
+        base: Base dictionary to merge into.
+        override: Override dictionary with values to apply.
+
+    Returns:
+        New dictionary with override values applied to base. Nested dicts
+        are merged recursively; other values are replaced.
+    """
     merged = base.copy()
     for key, value in override.items():
         if isinstance(value, dict) and isinstance(merged.get(key), dict):
@@ -112,11 +189,21 @@ def deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]
     return merged
 
 
-def resolve_cooling(spec: Any) -> Callable[[int], float]:
-    """Resolve cooling schedule specification to a callable T(t) function."""
+def resolve_cooling(spec: Any) -> CoolingSchedule:
+    """Resolve a cooling schedule specification to a callable T(t) function.
+
+    Args:
+        spec: Cooling schedule specification - can be a callable, string name,
+            or dict with 'type' and 'params' keys.
+
+    Returns:
+        Callable that maps evaluation index to temperature value.
+
+    Raises:
+        ValueError: If specification format is invalid or type is unknown.
+    """
     if callable(spec):
-        # Patch: prevents linter warnings
-        return cast(Callable[[int], float], spec)
+        return cast(CoolingSchedule, spec)
 
     if isinstance(spec, str):
         key = spec.strip().lower()
@@ -135,21 +222,48 @@ def resolve_cooling(spec: Any) -> Callable[[int], float]:
 
 
 def get_algorithm_class(class_name: str) -> type[Algorithm]:
-    """Look up algorithm class from registry."""
+    """Look up an algorithm class from the registry.
+
+    Args:
+        class_name: Registry key for the algorithm.
+
+    Returns:
+        Algorithm class type.
+
+    Raises:
+        KeyError: If class_name is not in the registry.
+    """
     if class_name not in ALGORITHM_REGISTRY:
         raise KeyError(f"Unknown algorithm class: {class_name}")
     return ALGORITHM_REGISTRY[class_name]
 
 
 def get_problem_class(class_name: str) -> type[Problem]:
-    """Look up problem class from registry."""
+    """Look up a problem class from the registry.
+
+    Args:
+        class_name: Registry key for the problem.
+
+    Returns:
+        Problem class type.
+
+    Raises:
+        KeyError: If class_name is not in the registry.
+    """
     if class_name not in PROBLEM_REGISTRY:
         raise KeyError(f"Unknown problem class: {class_name}")
     return PROBLEM_REGISTRY[class_name]
 
 
 def instantiate_problem(spec: ProblemSpec) -> Problem:
-    """Instantiate a problem from its specification."""
+    """Instantiate a problem from its specification.
+
+    Args:
+        spec: Problem specification with class name and parameters.
+
+    Returns:
+        Instantiated Problem object.
+    """
     cls = get_problem_class(spec.class_name)
     return cls(**spec.params)
 
@@ -217,7 +331,15 @@ def parse_algorithms(config: dict[str, Any]) -> list[AlgorithmSpec]:
 
 
 def resolve_algorithm_args(raw_args: dict[str, Any]) -> dict[str, Any]:
-    """Process algorithm arguments, resolving cooling schedules."""
+    """Process algorithm arguments, resolving cooling schedules.
+
+    Args:
+        raw_args: Raw argument dictionary from config.
+
+    Returns:
+        Processed arguments with 'cooling' key normalized to 'T_func'
+        and cooling schedule specs resolved to callables.
+    """
     args = raw_args.copy()
 
     # Normalize "cooling" key to "T_func"
@@ -231,29 +353,61 @@ def resolve_algorithm_args(raw_args: dict[str, Any]) -> dict[str, Any]:
 
 
 def resolve_alg_kwargs(spec: AlgorithmSpec, problem_name: str) -> dict[str, Any]:
-    """Resolve algorithm kwargs by merging defaults with problem-specific overrides."""
+    """Resolve algorithm kwargs by merging defaults with problem-specific overrides.
+
+    Args:
+        spec: Algorithm specification with default and per-problem args.
+        problem_name: Name of the current problem for override lookup.
+
+    Returns:
+        Merged and resolved algorithm keyword arguments.
+    """
     defaults = spec.args.get("defaults", {})
     override = spec.args.get("by_problem", {}).get(problem_name, {})
     return resolve_algorithm_args(deep_merge(defaults, override))
 
 
-def history_view_at_budget(
-    keyed_results: dict[tuple[str, int], list[dict[str, Any]]], budget: int
-) -> dict[str, list[dict[str, Any]]]:
-    """Extract algorithm-to-runs mapping for one budget."""
+def history_view_at_budget(keyed_results: KeyedResults, budget: int) -> HistoryResults:
+    """Extract algorithm-to-runs mapping for a specific budget.
+
+    Filters keyed results to include only runs at the specified budget,
+    re-keying by algorithm name alone.
+
+    Args:
+        keyed_results: Results dict keyed by (algorithm_name, budget) tuples.
+            Each value is a list of RunResult dicts containing 'regret',
+            'best_value', 'optimal', 'evaluations', 'seed', and optionally
+            'trajectory'.
+        budget: Budget value to filter by.
+
+    Returns:
+        Dict mapping algorithm name to list of RunResult dicts for the
+        specified budget only.
+    """
     return {alg: runs for (alg, b), runs in keyed_results.items() if b == budget}
 
 
 def write_runtime_profile_csv(
     output_dir: Path,
-    time_grid: Any,
-    empirical_ecr: dict[str, Any],
-    profile_ecr: dict[str, Any],
+    time_grid: TimeGrid,
+    empirical_ecr: EmpiricalCumulativeRegret,
+    profile_ecr: ProfileCumulativeRegret,
 ) -> None:
-    """Persist runtime-profile CR comparison series to CSV files.
+    """Write runtime-profile cumulative regret comparison to CSV files.
 
-    One CSV is written per algorithm with columns:
-    evaluation, expected_cumulative_regret, mean_cumulative_regret.
+    Creates one CSV per algorithm with columns: evaluation,
+    expected_cumulative_regret, mean_cumulative_regret. This enables
+    verification that the profile-based E[CR(T)] matches empirical estimates.
+
+    Args:
+        output_dir: Directory to write CSV files to.
+        time_grid: 1D array of evaluation time points, shape (T,).
+        empirical_ecr: Dict mapping algorithm name to empirical E[CR(T)] array,
+            computed by direct averaging of cumulative regrets across runs.
+            Each value has shape (T,) matching time_grid.
+        profile_ecr: Dict mapping algorithm name to profile-derived E[CR(T)]
+            array, computed via the tail-sum formula from the inverse
+            runtime profile. Each value has shape (T,) matching time_grid.
     """
     for alg_name in sorted(set(empirical_ecr).intersection(profile_ecr)):
         csv_path = output_dir / f"cr_profile_data_{safe_slug(alg_name)}.csv"
@@ -280,7 +434,7 @@ def export_runtime_profile_data(
     problem_name: str,
     n: int,
     f_star: float | None,
-    results: dict[tuple[str, int], list[dict[str, Any]]],
+    results: KeyedResults,
     budget_for_plots: int,
     plotting_config: dict[str, Any],
     raw_output_dir: Path | str = "results/raw",
@@ -288,11 +442,27 @@ def export_runtime_profile_data(
 ) -> None:
     """Export runtime-profile CSV artifacts and optional profile plots.
 
-    CSV files are written under:
-    <raw_output_dir>/<suite>/<problem>/<profile_subdir>/n<n>/cr_profile_data_<alg>.csv
+    Writes CSV files with runtime profile data and optionally generates
+    profile visualization plots (inverse runtime profile surfaces/curves,
+    and E[CR(T)] verification plots).
 
-    If figures_output_dir is provided, runtime-profile plots are also saved under:
-    <figures_output_dir>/<suite>/<problem>/n<n>/<profile_subdir>/
+    Args:
+        suite_name: Name of the experiment suite (used for directory structure).
+        problem_name: Display name of the problem.
+        n: Problem dimension/size.
+        f_star: Global optimum value, or None if unknown. If None, profile
+            analysis is skipped entirely.
+        results: Results dict keyed by (algorithm_name, budget) tuples. Each
+            value is a list of RunResult dicts. Runs must include 'trajectory'
+            key for profile analysis.
+        budget_for_plots: Budget at which to compute and visualize profiles.
+        plotting_config: Plotting configuration dict from YAML with keys:
+            - 'layout': Directory structure settings
+            - 'plots': Per-plot-type configuration (enabled, filename, etc.)
+            - 'titles': Title formatting options
+        raw_output_dir: Base directory for CSV output files.
+        figures_output_dir: Base directory for figure output. If None, only
+            CSV export is performed (no plots generated).
     """
     if f_star is None:
         return
@@ -430,24 +600,41 @@ def generate_plots(
     problem_name: str,
     n: int,
     f_star: float | None,
-    results: dict[tuple[str, int], list[dict[str, Any]]],
+    results: KeyedResults,
     budget_for_plots: int,
     plotting_config: dict[str, Any],
     output_dir: Path | str = "results/figures",
 ) -> None:
     """Generate plots for a problem's results based on config.
 
+    Generates a comprehensive set of visualization plots for experiment results,
+    including regret curves, boxplots, convergence probability, history
+    trajectories, and TTFO distributions.
+
     Args:
-        suite_name: Name of the experiment suite.
-        problem_name: Name of the problem.
-        n: Problem size.
-        f_star: Known optimum value, or None if unknown.
-        results: Mapping of (algorithm, budget) -> list of run result dicts.
-        budget_for_plots: Optional budget for budget-specific plots. If None,
-            uses max_budget.
+        suite_name: Name of the experiment suite (used for directory structure).
+        problem_name: Display name of the problem.
+        n: Problem dimension/size.
+        f_star: Known optimum value, or None if unknown. Some plots (history,
+            regret trajectories) require this value and are skipped if None.
+        results: Results keyed by (algorithm_name, budget) tuples. Each value
+            is a list of run result dicts with keys:
+            - regret (float): Simple regret
+            - best_value (float): Best fitness found
+            - optimal (bool): Whether optimum was found
+            - evaluations (int): Number of evaluations
+            - seed (int): Random seed
+            - trajectory (list[tuple], optional): Full trajectory for history plots
+        budget_for_plots: Budget at which to generate budget-specific plots
+            (boxplots, performance profiles, history plots).
+        plotting_config: Plotting configuration dict from YAML with keys:
+            - 'plots': Per-plot-type configuration (enabled, filename, etc.)
+            - 'layout': Directory structure settings (per_problem_dir, etc.)
+            - 'titles': Title formatting options (include_problem_name, etc.)
         output_dir: Base directory for saving figures.
-        plotting_config: Optional plotting configuration dict from YAML.
-            If None, generates all plots with default settings.
+
+    Raises:
+        ValueError: If budget_for_plots is not present in results.
     """
 
     available_budgets = {int(b) for _, b in results.keys()}
@@ -493,7 +680,15 @@ def generate_plots(
         d.mkdir(parents=True, exist_ok=True)
 
     def _optional_kwargs(cfg: dict[str, Any], keys: list[str]) -> dict[str, Any]:
-        """Forward only explicitly configured plotting kwargs."""
+        """Extract only explicitly configured plotting kwargs.
+
+        Args:
+            cfg: Configuration dictionary for a specific plot.
+            keys: List of keys to potentially extract.
+
+        Returns:
+            Dict containing only keys that exist in cfg.
+        """
         return {k: cfg[k] for k in keys if k in cfg}
 
     # Aggregate plots (across budgets)
@@ -627,12 +822,12 @@ def generate_plots(
             else:
                 default_series = "cumulative"
             series = cfg.get("series", default_series)
-            use_best = cfg.get("use_best", "best" in plot_key)
+            track_incumbent = cfg.get("track_incumbent", "best" in plot_key)
             default_filename = f"history_{plot_key}.pdf"
 
             title_suffix = f"{series.title()} Regret"
-            if use_best:
-                title_suffix += " (best)"
+            if track_incumbent:
+                title_suffix += " (incumbent)"
 
             plot_regret_curves(
                 history_results,
@@ -643,7 +838,7 @@ def generate_plots(
                     f"{title_suffix} Trajectory at Budget={budget_for_plots}",
                 ),
                 series=series,
-                use_best=use_best,
+                track_incumbent=track_incumbent,
                 log_x=cfg.get("log_x", False),
                 log_y=cfg.get("log_y", True),
                 show_ttfo_markers=cfg.get("show_ttfo_markers", True),

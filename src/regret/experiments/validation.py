@@ -15,7 +15,11 @@ from .utils import ALGORITHM_REGISTRY, COOLING_REGISTRY, PROBLEM_REGISTRY
 
 
 class ValidationError(Exception):
-    """Raised when config validation fails."""
+    """Raised when config validation fails.
+
+    This exception is raised when YAML config files fail schema validation,
+    semantic validation, or cannot be loaded/parsed.
+    """
 
     pass
 
@@ -188,7 +192,15 @@ def _validate_cooling_schedule(args_dict: dict[str, Any], path: str) -> None:
 
 
 def _validate_cooling_keys_exclusive(args_dict: dict[str, Any], path: str) -> None:
-    """Reject redundant simultaneous cooling keys."""
+    """Reject redundant simultaneous cooling keys.
+
+    Args:
+        args_dict: Dictionary containing algorithm arguments.
+        path: Path string for error messages.
+
+    Raises:
+        ValidationError: If both 'cooling' and 'T_func' are specified.
+    """
     if "cooling" in args_dict and "T_func" in args_dict:
         raise ValidationError(f"{path}: use only one of 'cooling' or 'T_func', not both")
 

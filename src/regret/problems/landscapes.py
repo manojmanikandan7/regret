@@ -1,10 +1,33 @@
+"""Rugged fitness landscape problems.
+
+This module implements fitness landscape models with tunable ruggedness,
+useful for studying algorithm behavior on problems with varying degrees
+of epistasis (interaction between variables).
+
+Problems:
+    NKLandscape: Kauffman's NK model with tunable ruggedness via parameter k.
+"""
+
 import numpy as np
 
 from regret.core.base import Problem
 
 
 class NKLandscape(Problem):
-    """NK-landscape with tunable ruggedness."""
+    """NK-landscape with tunable ruggedness.
+
+    Kauffman's NK model creates fitness landscapes where each of n loci
+    contributes to fitness based on its own value and k neighboring loci.
+    Higher k increases epistasis and ruggedness, making optimization harder.
+
+    The landscape is generated randomly using contribution tables, with
+    fitness normalized to [0, 1].
+
+    Attributes:
+        k: Number of interacting neighbors per locus (capped at n-1).
+        rng: NumPy random generator for reproducible landscape generation.
+        contributions: List of contribution tables, one per locus.
+    """
 
     def __init__(self, n: int, k: int = 2, seed: int | None = None):
         """Initialize NK landscape with epistasis and reproducible seed.

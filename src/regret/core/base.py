@@ -7,7 +7,16 @@ import numpy as np
 
 
 class Problem(ABC):
-    """Abstract pseudo-boolean optimization problem."""
+    """Abstract pseudo-boolean optimization problem.
+
+    Provides a common interface for defining fitness landscapes over binary
+    search spaces. Subclasses implement specific objective functions.
+
+    Attributes:
+        n: Dimension of the bitstring search space.
+        f_star: Cached global optimum value (computed at initialization).
+        f_worst: Cached worst possible fitness value (computed at initialization).
+    """
 
     def __init__(self, n: int):
         """Initialize problem with dimension and cache optimum.
@@ -17,6 +26,7 @@ class Problem(ABC):
         """
         self.n = n
         self.f_star = self.get_optimum_value()
+        self.f_worst = self.get_worst_value()
 
     @abstractmethod
     def evaluate(self, x: np.ndarray) -> float:
@@ -39,9 +49,39 @@ class Problem(ABC):
         """
         pass
 
+    def get_worst_value(self) -> float:
+        """Return the worst possible fitness value for the problem.
+
+        The default implementation returns 0.0, which is suitable for
+        most non-negative pseudo-Boolean functions where the worst case
+        is the all-zeros bitstring.
+
+        Override this method if your problem has a different worst-case value.
+
+        Returns:
+            Objective value of a worst possible solution.
+        """
+        return 0.0
+
 
 class Algorithm(ABC):
-    """Abstract optimization algorithm operating on a `Problem`."""
+    """Abstract optimization algorithm operating on a `Problem`.
+
+    Provides a common interface for iterative optimization algorithms that
+    operate on binary search spaces. Subclasses implement specific search
+    strategies by overriding the `step` method.
+
+    Attributes:
+        problem: The problem instance being optimized.
+        rng: NumPy random number generator for reproducible randomness.
+        callback: Optional callback invoked at each step with signature
+            (evaluations, current_value, best_value, current_solution).
+        evaluations: Total number of fitness evaluations performed.
+        best_value: Best fitness value observed so far.
+        best_solution: Binary array representing the best solution found.
+        history: List of (evaluations, current_value, best_value) tuples
+            recording the search trajectory.
+    """
 
     def __init__(
         self,

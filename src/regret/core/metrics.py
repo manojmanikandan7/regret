@@ -1,3 +1,33 @@
+"""Regret metrics for evaluating optimization algorithm performance.
+
+This module computes various types of regret metrics:
+
+**Simple Regret (SR)**: The gap between the global optimum f* and the best
+solution found at termination: SR(T) = f* - f(x_best_T). This measures
+the quality of the final recommendation.
+
+**Instantaneous Regret (IR)**: The gap at each evaluation step t.
+- IR_current(t) = f* - f(x_t): regret of the solution evaluated at time t
+  (track_incumbent=False)
+- IR_incumbent(t) = f* - f(x_best_t): regret of the best solution found so far
+  (track_incumbent=True). This is equivalent to simple regret at time t and is
+  monotonically non-increasing.
+
+**Cumulative Regret (CR)**: The integral of instantaneous regret over time:
+CR(T) = ∫₀ᵀ IR(t) dt. This measures total cost incurred during optimization
+(e.g., total error accumulated across all iterations).
+
+**Normalized Regret (NR)**: Simple regret scaled to [0, 1] by the fitness range:
+NR = (f* - f(x)) / (f* - f_worst). Enables comparison across problems with
+different scales.
+
+**Expected Simple Regret (E[SR])**: The mean simple regret across multiple
+independent runs. This is the standard metric for comparing fixed-budget
+optimization algorithms.
+
+All formulas assume maximization problems, where f* is the global maximum.
+"""
+
 import numpy as np
 
 Trajectory = list[tuple[int, float, float]]
@@ -86,33 +116,50 @@ def simple_regret(solution_value: float, f_star: float) -> float:
     return f_star - solution_value
 
 
-def instantaneous_regret(trajectory: Trajectory, f_star: float, use_best: bool = False) -> list[tuple[int, float]]:
+def instantaneous_regret(
+    trajectory: Trajectory, f_star: float, track_incumbent: bool = False
+) -> list[tuple[int, float]]:
     """Compute instantaneous regret series for a trajectory at each evaluation (time) point.
+
+    Instantaneous regret measures the gap from the optimum at each evaluation step.
+
+    When track_incumbent=False (default):
+        IR(t) = f* - f(x_t)
+        This is the "true" instantaneous regret of the solution evaluated at time t.
+
+    When track_incumbent=True:
+        IR(t) = f* - f(x_best_t)
+        This tracks the regret of the best-so-far (incumbent) solution, which is
+        equivalent to simple regret at time t. This variant is monotonically
+        non-increasing.
 
     Args:
         trajectory: Sequence of (evaluations, current_value, best_value) tuples.
         f_star: Global optimum value.
-        use_best: If True, use best_value; otherwise use current_value.
+        track_incumbent: If True, use best-so-far value; otherwise use current value.
 
     Returns:
         List of (evaluation, instantaneous regret) pairs.
     """
-    if use_best:
+    if track_incumbent:
         return [(t, f_star - best_value) for t, _, best_value in trajectory]
     return [(t, f_star - current_value) for t, current_value, _ in trajectory]
 
 
-def cumulative_regret(trajectory: Trajectory, f_star: float, use_best: bool = False) -> list[tuple[int, float]]:
+def cumulative_regret(trajectory: Trajectory, f_star: float, track_incumbent: bool = False) -> list[tuple[int, float]]:
     """Compute cumulative regret series for a trajectory.
-    cumulative regret is the running sum of instantaneous regrets using a left-hold
-    approximation over the evaluation grid. At each time point t, the
-    cumulative regret is the integral of instantaneous regret from
-    time 0 to t.
+
+    Cumulative regret is the running integral of instantaneous regret using a left-hold
+    approximation over the evaluation grid: CR(T) = \\sum_{1}^{t} IR(t).
+
+    This measures the total "cost" incurred during optimization, as opposed to
+    simple regret which only measures final solution quality.
 
     Args:
         trajectory: Sequence of (evaluations, current_value, best_value) tuples.
         f_star: Global optimum value.
-        use_best: If True, use best value obtained so far (`best_value`); otherwise use current_value.
+        track_incumbent: If True, use best-so-far value; otherwise use current value.
+            See instantaneous_regret() for details on this parameter.
 
     Returns:
         List of (evaluation, cumulative regret) pairs using left-hold integration.
@@ -120,7 +167,7 @@ def cumulative_regret(trajectory: Trajectory, f_star: float, use_best: bool = Fa
     if len(trajectory) < 2:
         return [(trajectory[0][0], 0.0)] if trajectory else []
 
-    inst_regrets = instantaneous_regret(trajectory, f_star, use_best)
+    inst_regrets = instantaneous_regret(trajectory, f_star, track_incumbent)
     # Include the missing initial rectangle from time 0 to the first evaluation
     # Under left-hold integration: cumulative_regret(t) = (t - 0) * regret_at_0
     # We approximate regret_at_0 as the regret at the first evaluation
@@ -238,7 +285,7 @@ def inv_profile_to_expected_cumulative_regret(
     fitness_levels: np.ndarray,
     time_grid: np.ndarray,
 ) -> np.ndarray:
-    """Derive E[CR(T)] from runtime profile via layer-cake identity.
+    """Derive E[CR(T)] from runtime profile via tail-sum formula.
 
     Computes expected cumulative regret using
     E[CR(T)] = Sum_{v=1}^{f*} Sum_{t'=1}^{T} [1 - P(\\tau_v <= t')]

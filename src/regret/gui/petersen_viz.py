@@ -12,6 +12,12 @@ class PetersenGraphVisualizer:
 
     Decodes binary solution vectors into vertex-color assignments and renders
     the Petersen graph structure with matplotlib.
+
+    Attributes:
+        problem: PetersenColoringMaxSAT instance defining the graph structure.
+        n_vertices: Number of vertices in the Petersen graph (10).
+        k_colors: Number of colors available for assignment (3).
+        edges: List of (u, v) tuples representing graph edges.
     """
 
     # Color mapping: 0 -> red, 1 -> green, 2 -> blue

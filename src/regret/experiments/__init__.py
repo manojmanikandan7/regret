@@ -4,9 +4,8 @@ This module re-exports shared experiment utilities for a stable import surface
 while internals are split across cli/validation/orchestration/utils modules.
 """
 
-from collections.abc import Callable
-
 from regret.algorithms.annealing import (
+    CoolingSchedule,
     ExponentialCooling,
     LinearCooling,
     LogarithmicCooling,
@@ -54,7 +53,7 @@ ALGORITHM_REGISTRY: dict[str, type[Algorithm]] = {
     "MuPlusLambdaEA": MuPlusLambdaEA,
 }
 
-COOLING_REGISTRY: dict[str, Callable[..., Callable[[int], float]]] = {
+COOLING_REGISTRY: dict[str, type[CoolingSchedule]] = {
     "logarithmic": LogarithmicCooling,
     "linear": LinearCooling,
     "exponential": ExponentialCooling,

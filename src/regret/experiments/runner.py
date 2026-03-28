@@ -12,7 +12,15 @@ from regret.core.metrics import compute_statistics, probability_optimal, simple_
 
 
 class ExperimentRunner:
-    """Run and manage optimization experiments."""
+    """Run and manage optimization experiments.
+
+    Provides methods for running single trials, multiple independent runs, and
+    saving/loading results. Supports both sequential and parallel execution.
+
+    Attributes:
+        output_dir: Path to directory where raw JSON result files are written.
+        max_workers: Maximum worker processes for parallel execution.
+    """
 
     def __init__(self, output_dir: str = "results/raw", max_workers: int | None = None):
         """Initialize an experiment runner.
@@ -262,7 +270,11 @@ class ExperimentRunner:
 
 
 class BatchRunner:
-    """Run batches of experiments with multiple algorithms and budgets."""
+    """Run batches of experiments with multiple algorithms and budgets.
+
+    Attributes:
+        runner: Underlying ExperimentRunner used to execute individual experiments.
+    """
 
     def __init__(self, runner: ExperimentRunner | None = None):
         """Initialize a batch runner.

@@ -1,14 +1,49 @@
+"""Plotting utilities for experiment result visualization.
+
+This module provides functions to visualize optimization algorithm performance
+through various plot types including regret curves, boxplots, heatmaps, and
+runtime profiles. All plots use matplotlib with standard defaults.
+
+Plot types:
+    - Regret curves: Mean regret vs budget with uncertainty bands.
+    - Boxplots: Distribution comparison at specific budgets.
+    - Convergence probability: P(optimal) vs budget.
+    - Performance profiles: CDF of regrets across algorithms.
+    - History plots: Fitness trajectory over evaluations.
+    - TTFO distribution: Time-to-first-optimum scatter plots.
+    - Runtime profiles: Inverse runtime profile surfaces and curves.
+
+Statistical annotations include pairwise tests (Mann-Whitney U, Wilcoxon)
+and effect sizes (Cohen's d) for algorithm comparison.
+
+Type Aliases (imported from regret._types):
+    KeyedResults: Results dict keyed by (algorithm_name, budget) tuples.
+    HistoryResults: Results dict keyed by algorithm name only.
+    FitnessLevels: 1D numpy array of intermediate fitness levels.
+    TimeGrid: 1D numpy array of evaluation time points.
+    InverseRuntimeProfile: 2D numpy array P(\\tau_v <= T).
+    EmpiricalCumulativeRegret: E[CR(T)] computed directly from trajectory averaging.
+    ProfileCumulativeRegret: E[CR(T)] derived via layer-cake from inverse profiles.
+"""
+
+import logging
 from pathlib import Path
 
 import matplotlib
-
-matplotlib.use("Agg")  # Use non-interactive backend to avoid tkinter threading issues
-
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.figure import Figure
 
+from regret._types import (
+    EmpiricalCumulativeRegret,
+    FitnessLevels,
+    HistoryResults,
+    InverseRuntimeProfile,
+    KeyedResults,
+    ProfileCumulativeRegret,
+    TimeGrid,
+)
 from regret.analysis.statistics import (
     bootstrap_confidence_interval,
     effect_size_cohens_d,
@@ -22,6 +57,11 @@ from regret.core.metrics import (
     instantaneous_regret,
 )
 
+logger = logging.getLogger(__name__)
+
+matplotlib.use("Agg")  # Use non-interactive backend to avoid tkinter threading issues
+
+
 # Set publication-quality defaults
 plt.rcParams["figure.figsize"] = (10, 6)
 plt.rcParams["font.size"] = 11
@@ -34,13 +74,27 @@ plt.rcParams["figure.dpi"] = 400
 
 
 def _clean_numeric(values: np.ndarray | list[float]) -> np.ndarray:
-    """Return finite values as a 1D float array."""
+    """Return finite values as a 1D float array.
+
+    Args:
+        values: Input array or list of numeric values.
+
+    Returns:
+        1D numpy array containing only finite (non-NaN, non-inf) values.
+    """
     arr = np.asarray(values, dtype=float).ravel()
     return arr[np.isfinite(arr)]
 
 
 def _safe_sem(values: np.ndarray) -> float:
-    """Compute SEM robustly for small samples."""
+    """Compute standard error of the mean robustly for small samples.
+
+    Args:
+        values: Array of numeric values.
+
+    Returns:
+        SEM value, or 0.0 if sample size is <= 1.
+    """
     n = len(values)
     if n <= 1:
         return 0.0
@@ -48,7 +102,14 @@ def _safe_sem(values: np.ndarray) -> float:
 
 
 def _safe_sd(values: np.ndarray) -> float:
-    """Compute sample standard deviation robustly for small samples."""
+    """Compute sample standard deviation robustly for small samples.
+
+    Args:
+        values: Array of numeric values.
+
+    Returns:
+        Sample SD, or 0.0 if sample size is <= 1.
+    """
     if len(values) <= 1:
         return 0.0
     return float(np.std(values, ddof=1))
@@ -60,15 +121,19 @@ def _summary_interval(
     confidence: float = 0.95,
     n_bootstrap: int = 2000,
 ) -> tuple[float, float, float]:
-    """
-    Return center, lower, upper uncertainty values for 1D samples.
+    """Compute center and uncertainty interval for 1D samples.
 
-    spread options:
-        - "none": no interval
-        - "sem": mean +/- SEM
-        - "sd": mean +/- SD
-        - "bootstrap_ci": bootstrap CI on the mean
-        - "iqr": interquartile range around the median
+    Args:
+        samples: 1D array of sample values.
+        spread: Uncertainty type - one of "none", "sem", "sd", "bootstrap_ci", "iqr".
+        confidence: Confidence level for bootstrap CI (default: 0.95).
+        n_bootstrap: Number of bootstrap resamples (default: 2000).
+
+    Returns:
+        Tuple of (center, lower, upper) values. For "none", all three are equal.
+
+    Raises:
+        ValueError: If spread is not a recognized option.
     """
     vals = _clean_numeric(samples)
     if len(vals) == 0:
@@ -99,6 +164,15 @@ def _summary_interval(
 
 
 def _format_pvalue(pvalue: float) -> str:
+    """Format a p-value for display in annotations.
+
+    Args:
+        pvalue: Statistical p-value to format.
+
+    Returns:
+        Formatted string: "nan" if non-finite, "<1e-4" if very small,
+        otherwise 4 decimal places.
+    """
     if not np.isfinite(pvalue):
         return "nan"
     if pvalue < 1e-4:
@@ -107,7 +181,16 @@ def _format_pvalue(pvalue: float) -> str:
 
 
 def _safe_cohens_d(a: np.ndarray, b: np.ndarray) -> float:
-    """Compute Cohen's d with safeguards for degenerate variance."""
+    """Compute Cohen's d effect size with safeguards for degenerate cases.
+
+    Args:
+        a: First sample array.
+        b: Second sample array.
+
+    Returns:
+        Cohen's d value, or NaN if either sample has fewer than 2 values
+        or if the result is non-finite.
+    """
     a_vals = _clean_numeric(a)
     b_vals = _clean_numeric(b)
     if len(a_vals) < 2 or len(b_vals) < 2:
@@ -124,7 +207,17 @@ def _pairwise_stats_text(
     reference: str | None = None,
     paired: bool = False,
 ) -> str:
-    """Build compact pairwise significance/effect-size annotation text."""
+    """Build compact pairwise significance and effect-size annotation text.
+
+    Args:
+        distributions: Mapping of algorithm name to regret/metric arrays.
+        reference: Reference algorithm for comparisons (defaults to first sorted).
+        paired: If True, use Wilcoxon signed-rank test; otherwise Mann-Whitney U.
+
+    Returns:
+        Multi-line annotation string with test results, or empty string if
+        insufficient data.
+    """
     if not distributions:
         return ""
 
@@ -162,6 +255,12 @@ def _pairwise_stats_text(
 
 
 def _draw_pairwise_annotation(ax, text: str) -> None:
+    """Draw pairwise statistics annotation box on axes.
+
+    Args:
+        ax: Matplotlib axes to annotate.
+        text: Annotation text to display.
+    """
     if not text:
         return
     ax.text(
@@ -182,7 +281,17 @@ def _time_series_band(
     confidence: float = 0.95,
     n_bootstrap: int = 1000,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Compute center/lower/upper across runs for each time index."""
+    """Compute center and uncertainty band across runs for each time index.
+
+    Args:
+        values: 2D array of shape (n_runs, n_time) containing time series.
+        spread: Uncertainty type - one of "none", "sem", "sd", "bootstrap_ci", "iqr".
+        confidence: Confidence level for bootstrap CI.
+        n_bootstrap: Number of bootstrap resamples.
+
+    Returns:
+        Tuple of (centers, lowers, uppers) arrays, each of shape (n_time,).
+    """
     n_time = values.shape[1]
     centers = np.full(n_time, np.nan, dtype=float)
     lowers = np.full(n_time, np.nan, dtype=float)
@@ -208,7 +317,13 @@ def _finalize_figure(
     save_path: str | None = None,
     show: bool = True,
 ):
-    """Save and/or render figure with consistent behavior."""
+    """Save and/or render figure with consistent behavior.
+
+    Args:
+        fig: Matplotlib Figure to finalize.
+        save_path: Path to save the figure. Creates parent directories if needed.
+        show: Whether to display the figure interactively.
+    """
     fig.tight_layout()
 
     if save_path:
@@ -226,9 +341,15 @@ def _ttfo_for_trajectory(
     f_star: float | None,
     tolerance: float = 1e-9,
 ) -> int | None:
-    """
-    Return first evaluation index where best_so_far reaches optimum (TTFO), else None.
-    trajectory tuples are expected as (evaluations, current_value, best_value).
+    """Find first evaluation index where best-so-far reaches the optimum.
+
+    Args:
+        trajectory: List of (evaluations, current_value, best_value) tuples.
+        f_star: Global optimum value. If None, returns None immediately.
+        tolerance: Tolerance for considering optimum reached.
+
+    Returns:
+        Evaluation index at which TTFO occurs, or None if never reached.
     """
     if f_star is None:
         return None
@@ -240,7 +361,7 @@ def _ttfo_for_trajectory(
 
 
 def plot_simple_regret_curves(
-    results: dict[tuple, list[dict]],
+    results: KeyedResults,
     save_path: str | None = None,
     log_scale: bool = True,
     title: str | None = None,
@@ -251,8 +372,38 @@ def plot_simple_regret_curves(
     annotate_pairwise: bool = False,
     comparison_budget: int | None = None,
     paired_runs: bool = False,
-):
-    """Plot mean regret vs budget for multiple algorithms."""
+) -> None:
+    """Plot mean simple regret vs budget for multiple algorithms.
+
+    Creates a line plot showing mean simple regret on the y-axis versus
+    evaluation budget on the x-axis, with one line per algorithm. Uncertainty
+    bands can be added around each line.
+
+    Args:
+        results: Results keyed by (algorithm_name, budget) tuples. Each value
+            is a list of run result dicts with keys:
+            - regret (float): Simple regret = f_star - best_value
+            - best_value (float): Best fitness found
+            - optimal (bool): Whether optimum was found
+            - evaluations (int): Number of evaluations
+            - seed (int): Random seed
+        save_path: Path to save the figure. If None, figure is not saved.
+        log_scale: Use log-log scale for axes (default True).
+        title: Plot title. If None, no title is shown.
+        show: Display the figure interactively (default True).
+        spread: Uncertainty band type. Options:
+            - "sem": Standard error of the mean
+            - "sd": Standard deviation
+            - "bootstrap_ci": Bootstrap confidence interval
+            - "iqr": Interquartile range
+            - "none": No uncertainty band
+        confidence: Confidence level for bootstrap CI (default 0.95).
+        n_bootstrap: Number of bootstrap resamples (default 2000).
+        annotate_pairwise: Add pairwise statistical comparison annotations.
+        comparison_budget: Budget at which to compute pairwise comparisons.
+            If None, uses the maximum budget.
+        paired_runs: Use paired statistical tests (Wilcoxon vs Mann-Whitney).
+    """
 
     algorithms = sorted(set(alg for alg, _ in results.keys()))
     budgets = sorted(set(budget for _, budget in results.keys()))
@@ -325,7 +476,7 @@ def plot_simple_regret_curves(
 
 
 def plot_simple_regret_boxplots(
-    results: dict[tuple, list[dict]],
+    results: KeyedResults,
     budget: int,
     save_path: str | None = None,
     title: str | None = None,
@@ -334,8 +485,25 @@ def plot_simple_regret_boxplots(
     annotate_pairwise: bool = False,
     reference_algorithm: str | None = None,
     paired_runs: bool = False,
-):
-    """Create boxplots comparing algorithms at a specific budget."""
+) -> None:
+    """Create boxplots comparing algorithm regret distributions at a specific budget.
+
+    Displays side-by-side boxplots showing the distribution of simple regret
+    values for each algorithm at a specified evaluation budget.
+
+    Args:
+        results: Results keyed by (algorithm_name, budget) tuples. Each value
+            is a list of run result dicts with 'regret' key (float).
+        budget: The budget value to filter results by.
+        save_path: Path to save the figure. If None, figure is not saved.
+        title: Plot title. If None, a default title is generated.
+        show: Display the figure interactively (default True).
+        show_points: Overlay individual data points on boxplots (default True).
+        annotate_pairwise: Add pairwise statistical comparison annotations.
+        reference_algorithm: Reference algorithm for pairwise comparisons.
+            If None, the algorithm with lowest mean regret is used.
+        paired_runs: Use paired statistical tests (Wilcoxon vs Mann-Whitney).
+    """
 
     algorithms = sorted([alg for alg, b in results.keys() if b == budget])
     data = [np.array([r["regret"] for r in results[(alg, budget)]], dtype=float) for alg in algorithms]
@@ -374,14 +542,27 @@ def plot_simple_regret_boxplots(
 
 
 def plot_convergence_probability(
-    results: dict[tuple, list[dict]],
+    results: KeyedResults,
     save_path: str | None = None,
     title: str | None = None,
     show: bool = True,
     show_confidence_band: bool = True,
     confidence: float = 0.95,
-):
-    """Plot probability of finding optimum vs budget."""
+) -> None:
+    """Plot probability of finding optimum vs budget.
+
+    Creates a line plot showing the fraction of runs that found the global
+    optimum (regret < 1e-9) at each budget level.
+
+    Args:
+        results: Results keyed by (algorithm_name, budget) tuples. Each value
+            is a list of run result dicts with 'regret' key (float).
+        save_path: Path to save the figure. If None, figure is not saved.
+        title: Plot title. If None, no title is shown.
+        show: Display the figure interactively (default True).
+        show_confidence_band: Show bootstrap confidence band around probability.
+        confidence: Confidence level for bootstrap CI (default 0.95).
+    """
 
     algorithms = sorted(set(alg for alg, _ in results.keys()))
     budgets = sorted(set(budget for _, budget in results.keys()))
@@ -428,11 +609,23 @@ def plot_convergence_probability(
 
 
 def plot_comparison_heatmap(
-    results: dict[tuple, list[dict]],
+    results: KeyedResults,
     save_path: str | None = None,
     show: bool = True,
-):
-    """Create heatmap of mean regrets across algorithms and budgets."""
+) -> None:
+    """Create heatmap of mean regrets (log10 scale) across algorithms and budgets.
+
+    Displays a 2D heatmap with algorithms on the y-axis and budgets on the
+    x-axis, with cell colors indicating log10(mean simple regret).
+
+    Args:
+        results: Results keyed by (algorithm_name, budget) tuples. Each value
+            is a list of run result dicts with 'regret' key (float).
+        save_path: Path to save the figure. If None, figure is not saved.
+        show: Display the figure interactively (default True).
+        save_path: Path to save the figure.
+        show: Display the figure interactively.
+    """
 
     algorithms = sorted(set(alg for alg, _ in results.keys()))
     budgets = sorted(set(budget for _, budget in results.keys()))
@@ -465,7 +658,7 @@ def plot_comparison_heatmap(
 
 
 def plot_performance_profile(
-    results: dict[tuple, list[dict]],
+    results: KeyedResults,
     budget: int,
     save_path: str | None = None,
     title: str | None = None,
@@ -473,8 +666,25 @@ def plot_performance_profile(
     annotate_pairwise: bool = False,
     reference_algorithm: str | None = None,
     paired_runs: bool = False,
-):
-    """Create performance profile (CDF of regrets)."""
+) -> None:
+    """Create performance profile (CDF of regrets) at a specific budget.
+
+    Displays the cumulative distribution function (CDF) of simple regret
+    values for each algorithm, showing what fraction of runs achieved
+    regret below each threshold.
+
+    Args:
+        results: Results keyed by (algorithm_name, budget) tuples. Each value
+            is a list of run result dicts with 'regret' key (float).
+        budget: The budget value to filter results by.
+        save_path: Path to save the figure. If None, figure is not saved.
+        title: Plot title. If None, a default title is generated.
+        show: Display the figure interactively (default True).
+        annotate_pairwise: Add pairwise statistical comparison annotations.
+        reference_algorithm: Reference algorithm for pairwise comparisons.
+            If None, the algorithm with lowest mean regret is used.
+        paired_runs: Use paired statistical tests (Wilcoxon vs Mann-Whitney).
+    """
 
     algorithms = sorted([alg for alg, b in results.keys() if b == budget])
     distributions: dict[str, np.ndarray] = {}
@@ -510,7 +720,7 @@ def plot_performance_profile(
 
 
 def plot_history(
-    results: dict[str, list[dict]],
+    results: HistoryResults,
     f_star: float,
     series: str = "current",
     log_x: bool = False,
@@ -523,21 +733,48 @@ def plot_history(
     spread: str = "sem",
     confidence: float = 0.95,
     n_bootstrap: int = 1000,
-):
-    """
-    Plot history series vs evaluations.
+) -> None:
+    """Plot fitness history series vs evaluations.
 
-    results maps algorithm name -> list of run dicts that include "trajectory".
-    series: "current" or "best"
+    Displays fitness trajectory over evaluation count for each algorithm,
+    showing either the current evaluated value or the best-so-far value.
 
-    TTFO helper markers:
-        * vertical line at mean TTFO for each algorithm
-        * point marker at corresponding mean series value
+    Args:
+        results: Results keyed by algorithm name. Each value is a list of run
+            result dicts with 'trajectory' key containing a list of
+            (evaluation_index, current_value, best_value) tuples.
+        f_star: Global optimum value (shown as horizontal reference line).
+        series: Series type to plot:
+            - "current": Value of the solution evaluated at each step
+            - "best": Best value found so far (monotonically increasing)
+        log_x: Use logarithmic x-axis (default False).
+        log_y: Use logarithmic y-axis (default False).
+        title: Plot title. If None, no title is shown.
+        save_path: Path to save the figure. If None, figure is not saved.
+        show: Display the figure interactively (default True).
+        ttfo_tolerance: Tolerance for TTFO (time-to-first-optimum) detection.
+        show_ttfo_markers: Show vertical lines at mean TTFO with error bars.
+        spread: Uncertainty band type ("sem", "sd", "bootstrap_ci", "iqr", "none").
+        confidence: Confidence level for bootstrap CI (default 0.95).
+        n_bootstrap: Number of bootstrap resamples (default 1000).
     """
     fig, ax = plt.subplots()
 
     for alg, runs in results.items():
+        n_total = len(runs)
         trajectories = [r["trajectory"] for r in runs if "trajectory" in r]
+        n_with_trajectory = len(trajectories)
+
+        if n_with_trajectory < n_total:
+            n_skipped = n_total - n_with_trajectory
+
+            logger.warning(
+                "plot_history: Algorithm '%s' has %d/%d runs without trajectory data (skipped)",
+                alg,
+                n_skipped,
+                n_total,
+            )
+
         if not trajectories:
             continue
 
@@ -669,10 +906,10 @@ def plot_history(
 
 
 def plot_regret_curves(
-    results: dict[str, list[dict]],
+    results: HistoryResults,
     f_star: float,
     series: str = "instantaneous",
-    use_best: bool = False,
+    track_incumbent: bool = False,
     log_x: bool = False,
     log_y: bool = False,
     title: str | None = None,
@@ -683,21 +920,50 @@ def plot_regret_curves(
     spread: str = "sem",
     confidence: float = 0.95,
     n_bootstrap: int = 1000,
-):
-    """
-    Plot regret series vs evaluations.
+) -> None:
+    """Plot regret series vs evaluations.
 
-    results maps algorithm name -> list of run dicts that include "trajectory".
-    series: "instantaneous" or "cumulative"
+    Displays instantaneous or cumulative regret trajectory over evaluation
+    count for each algorithm.
 
-    TTFO helper markers:
-        * vertical line at mean TTFO for each algorithm
-        * point marker at corresponding mean series value
+    Args:
+        results: Results keyed by algorithm name. Each value is a list of run
+            result dicts with 'trajectory' key containing a list of
+            (evaluation_index, current_value, best_value) tuples.
+        f_star: Global optimum value.
+        series: Regret series type:
+            - "instantaneous": Regret at each evaluation step
+            - "cumulative": Running sum of instantaneous regret
+        track_incumbent: If True, compute regret based on best-so-far (incumbent)
+            value; otherwise use current evaluated value. When True, instantaneous
+            regret is monotonically non-increasing.
+        log_x: Use logarithmic x-axis (default False).
+        log_y: Use logarithmic y-axis (default False).
+        title: Plot title. If None, no title is shown.
+        save_path: Path to save the figure. If None, figure is not saved.
+        show: Display the plot interactively (default True).
+        ttfo_tolerance: Tolerance for TTFO (time-to-first-optimum) detection.
+        show_ttfo_markers: Show vertical lines at mean TTFO.
+        spread: Uncertainty band type ("sem", "sd", "bootstrap_ci", "iqr", "none").
+        confidence: Confidence level for bootstrap CI (default 0.95).
+        n_bootstrap: Number of bootstrap samples (default 1000).
     """
     fig, ax = plt.subplots()
 
     for alg, runs in results.items():
+        n_total = len(runs)
         trajectories = [r["trajectory"] for r in runs if "trajectory" in r]
+        n_with_trajectory = len(trajectories)
+
+        if n_with_trajectory < n_total:
+            n_skipped = n_total - n_with_trajectory
+            logger.warning(
+                "plot_regret_curves: Algorithm '%s' has %d/%d runs without trajectory data (skipped)",
+                alg,
+                n_skipped,
+                n_total,
+            )
+
         if not trajectories:
             continue
 
@@ -706,9 +972,9 @@ def plot_regret_curves(
 
         for trajectory in trajectories:
             if series == "instantaneous":
-                series_points = instantaneous_regret(trajectory, f_star, use_best=use_best)
+                series_points = instantaneous_regret(trajectory, f_star, track_incumbent=track_incumbent)
             elif series == "cumulative":
-                series_points = cumulative_regret(trajectory, f_star, use_best=use_best)
+                series_points = cumulative_regret(trajectory, f_star, track_incumbent=track_incumbent)
             else:
                 raise ValueError("series must be 'instantaneous' or 'cumulative'.")
 
@@ -821,7 +1087,7 @@ def plot_regret_curves(
 
 
 def plot_ttfo_distribution(
-    results: dict[str, list[dict]],
+    results: HistoryResults,
     f_star: float | None,
     save_path: str | None = None,
     title: str | None = None,
@@ -831,21 +1097,25 @@ def plot_ttfo_distribution(
     annotate_pairwise: bool = False,
     reference_algorithm: str | None = None,
     paired_runs: bool = False,
-):
-    """
-    Plot TTFO (time-to-first-optimum) distribution across algorithms.
+) -> None:
+    """Plot TTFO (time-to-first-optimum) distribution across algorithms.
 
     Creates a scatter plot showing individual TTFO samples for each algorithm,
     with optional median TTFO vertical lines.
 
     Args:
-        results: Maps algorithm name -> list of run dicts containing "trajectory".
+        results: Results keyed by algorithm name. Each value is a list of run
+            result dicts with 'trajectory' key containing a list of
+            (evaluation_index, current_value, best_value) tuples.
         f_star: Known optimum value. If None, the function returns without plotting.
         save_path: Path to save the figure. If None, figure is not saved.
-        title: Plot title.
-        show: Whether to display the plot interactively.
-        tolerance: Tolerance for considering optimum reached.
+        title: Plot title. If None, no title is shown.
+        show: Whether to display the plot interactively (default True).
+        tolerance: Tolerance for considering optimum reached (default 1e-9).
         show_median: Whether to show median TTFO as vertical dashed lines.
+        annotate_pairwise: Add pairwise statistical comparison annotations.
+        reference_algorithm: Reference algorithm for pairwise comparisons.
+        paired_runs: Use paired statistical tests (Wilcoxon vs Mann-Whitney).
     """
     if f_star is None:
         return
@@ -858,16 +1128,27 @@ def plot_ttfo_distribution(
 
     for idx, (alg, color) in enumerate(zip(algorithms, colors, strict=False), start=1):
         runs = results[alg]
+        n_total = len(runs)
+        n_without_trajectory = 0
         ttfos = []
 
         for run in runs:
             trajectory = run.get("trajectory", [])
             if not trajectory:
+                n_without_trajectory += 1
                 continue
 
             ttfo = _ttfo_for_trajectory(trajectory, f_star, tolerance=tolerance)
             if ttfo is not None:
                 ttfos.append(ttfo)
+
+        if n_without_trajectory > 0:
+            logger.warning(
+                "plot_ttfo_distribution: Algorithm '%s' has %d/%d runs without trajectory data (skipped)",
+                alg,
+                n_without_trajectory,
+                n_total,
+            )
 
         if not ttfos:
             continue
@@ -919,9 +1200,9 @@ def plot_ttfo_distribution(
 
 
 def plot_inverse_runtime_profile_surface(
-    inv_profile: np.ndarray,
-    fitness_levels: np.ndarray,
-    time_grid: np.ndarray,
+    inv_profile: InverseRuntimeProfile,
+    fitness_levels: FitnessLevels,
+    time_grid: TimeGrid,
     f_star: float,
     save_path: str | None = None,
     show: bool = True,
@@ -930,18 +1211,20 @@ def plot_inverse_runtime_profile_surface(
 ) -> None:
     """Visualize inverse runtime profile P(\\tau_v <= T) as a 2D heatmap with contours.
 
-    Args:
-        inv_profile: Inverse Runtime profile array of shape (F, T) from compute_inverse_runtime_profile.
-        fitness_levels: Fitness level thresholds (rows, shape F).
-        time_grid: Evaluation time points (columns, shape T).
-        f_star: Global optimum fitness value (marked as reference line).
-        save_path: Path to save figure as PDF. If None, not saved.
-        show: Whether to display the figure.
-        title: Optional title for the plot.
-        n_contours: Number of contour levels to draw.
+    Displays the probability of reaching each fitness level by each time point
+    as a heatmap, with contour lines showing iso-probability curves.
 
-    Returns:
-        None. Saves and/or displays the figure based on save_path and show.
+    Args:
+        inv_profile: Inverse runtime profile array of shape (F, T) where entry
+            [f, t] gives P(\\tau_v <= T), the probability that fitness level
+            fitness_levels[f] was reached by time time_grid[t].
+        fitness_levels: 1D array of fitness level thresholds, shape (F,).
+        time_grid: 1D array of evaluation time points, shape (T,).
+        f_star: Global optimum fitness value (marked as reference line).
+        save_path: Path to save figure. If None, not saved.
+        show: Whether to display the figure (default True).
+        title: Optional title for the plot.
+        n_contours: Number of contour levels to draw (default 6).
     """
     fig, ax = plt.subplots(figsize=(10, 6))
 
@@ -981,9 +1264,9 @@ def plot_inverse_runtime_profile_surface(
 
 
 def plot_inverse_runtime_profile_curves(
-    inv_profiles: dict[str, np.ndarray],
-    fitness_levels: np.ndarray,
-    time_grid: np.ndarray,
+    inv_profiles: dict[str, InverseRuntimeProfile],
+    fitness_levels: FitnessLevels,
+    time_grid: TimeGrid,
     selected_levels: list[float],
     f_star: float,
     save_path: str | None = None,
@@ -992,16 +1275,20 @@ def plot_inverse_runtime_profile_curves(
 ) -> None:
     """Compare inverse runtime profiles across algorithms at selected fitness levels.
 
-    Plots P(\\tau_v <= T) vs T for each algorithm at representative fitness thresholds.
+    Creates a multi-panel plot showing P(\\tau_v <= T) vs T for each algorithm
+    at representative fitness thresholds, allowing comparison of how quickly
+    different algorithms reach various fitness levels.
 
     Args:
-        inv_profiles: Mapping of algorithm name -> inverse runtime profile array (F, T).
-        fitness_levels: Fitness level thresholds (shape F).
-        time_grid: Evaluation time points (shape T).
-        selected_levels: List of fitness levels to plot (subselect from fitness_levels).
+        inv_profiles: Mapping of algorithm name to inverse runtime profile array
+            of shape (F, T).
+        fitness_levels: 1D array of fitness level thresholds, shape (F,).
+        time_grid: 1D array of evaluation time points, shape (T,).
+        selected_levels: List of fitness levels to plot (subselected from
+            fitness_levels). One subplot is created per level.
         f_star: Global optimum fitness value.
-        save_path: Path to save figure as PDF. If None, not saved.
-        show: Whether to display the figure.
+        save_path: Path to save figure. If None, not saved.
+        show: Whether to display the figure (default True).
         title: Optional title for the plot.
 
     Returns:
@@ -1034,37 +1321,46 @@ def plot_inverse_runtime_profile_curves(
     _finalize_figure(fig, save_path=save_path, show=show)
 
 
+logger = logging.getLogger(__name__)
+
+matplotlib.use("Agg")  # Use non-interactive backend to avoid tkinter threading issues
+
+
 def plot_cr_profile_verification(
-    empirical_ecr: dict[str, np.ndarray],
-    profile_ecr: dict[str, np.ndarray],
-    time_grid: np.ndarray,
+    empirical_ecr: EmpiricalCumulativeRegret,
+    profile_ecr: ProfileCumulativeRegret,
+    time_grid: TimeGrid,
     save_path: str | None = None,
     show: bool = True,
     title: str | None = None,
 ) -> None:
-    """Verify layer-cake identity by comparing E[CR(T)] from two derivations.
+    """Verify the tail-sum formula by comparing E[CR(T)] from two derivations.
 
     Plots expected cumulative regret computed both directly (from per-run CR)
-    and via the runtime profile.
-      - Direct: mean of per-run cumulative regret (use_best=True)
-      - Profile: Sum_{v=1}^{f*} Sum_{t'=1}^{T} [1 - P(\\tau_v <= t')]
+    and via the inverse runtime profile. These should match for integer-valued,
+    unit-increment fitness functions; any gap indicates an error in trajectory
+    recording or metric computation.
+
+    Direct derivation:
+        Mean of per-run cumulative regret (track_incumbent=True)
+
+    Profile derivation (tail-sum formula):
+        Sum_{v=1}^{f*} Sum_{t'=1}^{T} [1 - P(\\tau_v <= t')]
         {inverse profile: P(\\tau_v <= t); P(\\tau_v > t) = 1 - P(\\tau_v <= t)}
-    They should match; any gap indicates an error
-    in trajectory recording or metric computation.
-    NOTE: The layer-cake identity is a theorem about integer-valued, unit-increment fitness functions.
-    This verification is not applicable for problem with fitness functions
-    that are distributed exponentially, for instance (e.g. BinVal).
+
+    Note (Work-in-progress): The tail-sum formula only holds exactly for integer-valued,
+    unit-increment fitness functions (For now). For other fitness functions (e.g., BinVal
+    with exponential spacing), the verification may show discrepancies.
 
     Args:
-        empirical_ecr: Mapping of algorithm name -> E[CR(T)] from direct calculation.
-        profile_ecr: Mapping of algorithm name -> E[CR(T)] from runtime profile.
-        time_grid: Evaluation time points at which CR was computed.
-        save_path: Path to save figure as PDF. If None, not saved.
-        show: Whether to display the figure.
+        empirical_ecr: Dict mapping algorithm name to E[CR(T)] array computed
+            by direct averaging of cumulative regrets. Each array has shape (T,).
+        profile_ecr: Dict mapping algorithm name to E[CR(T)] array derived from
+            inverse runtime profile via tail-sum formula. Shape (T,).
+        time_grid: 1D array of evaluation time points, shape (T,).
+        save_path: Path to save figure. If None, not saved.
+        show: Whether to display the figure (default True).
         title: Optional title for the plot.
-
-    Returns:
-        None. Saves and/or displays the figure based on save_path and show.
     """
     fig, ax = plt.subplots()
     colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]

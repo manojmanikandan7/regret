@@ -18,6 +18,13 @@ class InteractiveTrajectoryViewer:
     - Right panel: Regret curve with a marker at the current step
 
     Provides a slider to scrub through the algorithm's trajectory.
+
+    Attributes:
+        trajectory: TrajectoryBuffer containing recorded search history.
+        problem: PetersenColoringMaxSAT problem instance.
+        visualizer: PetersenGraphVisualizer used to render graph state.
+        f_star: Global optimum value from the problem.
+        regret: Array of instantaneous regret values across the trajectory.
     """
 
     def __init__(self, trajectory: TrajectoryBuffer, problem: PetersenColoringMaxSAT):
@@ -37,7 +44,7 @@ class InteractiveTrajectoryViewer:
         regret_list = instantaneous_regret(
             [(i, best_values[i], best_values[i]) for i in range(len(best_values))],
             self.f_star,
-            use_best=True,
+            track_incumbent=True,
         )
         # Extract just the regret values (second element) from tuples and convert to numpy array
         # regret_list is a list of (evaluation, regret) tuples
