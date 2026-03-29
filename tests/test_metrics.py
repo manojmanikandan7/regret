@@ -3,17 +3,29 @@
 import numpy as np
 import pytest
 
+from regret.analysis.profiles import run_profile_analysis
+from regret.analysis.tables import (
+    TableFormat,
+    compute_table_statistics,
+    create_aggregate_table,
+    create_results_table,
+    export_latex_table,
+    export_table,
+)
 from regret.core.metrics import (
     compute_inv_runtime_profile,
     compute_statistics,
     cumulative_regret,
+    expected_simple_regret,
     history_best_series,
     history_current_series,
     instantaneous_regret,
     inv_profile_to_expected_cumulative_regret,
     inv_runtime_profile_single_run,
+    normalized_regret,
     probability_optimal,
     simple_regret,
+    time_to_target,
     ttfo,
 )
 
@@ -527,3 +539,484 @@ class TestRuntimeProfileHelpers:
 
         with pytest.raises(ValueError, match="sorted"):
             inv_runtime_profile_single_run(trajectory, levels)
+
+
+class TestAnalysisTables:
+    """Test suite for analysis.tables module."""
+
+    def test_create_results_table_basic(self):
+        """Test create_results_table produces valid DataFrame."""
+        results = {
+            ("RLS", 100): [{"regret": 0.0}, {"regret": 1.0}, {"regret": 2.0}],
+            ("EA", 100): [{"regret": 0.5}, {"regret": 1.5}, {"regret": 2.5}],
+        }
+        df = create_results_table(results, budget=100)
+        assert len(df) == 2
+        assert "Algorithm" in df.columns
+        assert "Mean SR" in df.columns  # SR = Simple Regret
+        assert "Median SR" in df.columns
+        assert "Std" in df.columns
+        assert "IQR" in df.columns
+        assert "CI (95%)" in df.columns
+        assert "P(opt)" in df.columns
+        assert "Runs" in df.columns
+
+    def test_create_results_table_filters_by_budget(self):
+        """Test create_results_table filters results by budget."""
+        results = {
+            ("RLS", 100): [{"regret": 0.0}, {"regret": 1.0}],
+            ("RLS", 200): [{"regret": 0.5}, {"regret": 1.5}],
+            ("EA", 100): [{"regret": 0.2}, {"regret": 0.8}],
+        }
+        df = create_results_table(results, budget=100)
+        # Should only include results for budget=100
+        assert len(df) == 2
+        algorithms = df["Algorithm"].tolist()
+        assert "RLS" in algorithms
+        assert "EA" in algorithms
+
+    def test_create_results_table_computes_p_opt(self):
+        """Test create_results_table computes P(opt) correctly."""
+        results = {
+            ("RLS", 100): [
+                {"regret": 0.0},
+                {"regret": 0.0},
+                {"regret": 1.0},
+                {"regret": 2.0},
+            ],
+        }
+        df = create_results_table(results, budget=100)
+        # 2 out of 4 runs have regret < 1e-9 (i.e., regret == 0)
+        p_opt = float(df.loc[df["Algorithm"] == "RLS", "P(opt)"].values[0])
+        assert p_opt == 0.5
+
+    def test_create_results_table_sorted_by_mean(self):
+        """Test create_results_table sorts by mean regret ascending."""
+        results = {
+            ("WorstAlg", 100): [{"regret": 10.0}, {"regret": 10.0}],
+            ("BestAlg", 100): [{"regret": 0.1}, {"regret": 0.1}],
+            ("MidAlg", 100): [{"regret": 5.0}, {"regret": 5.0}],
+        }
+        df = create_results_table(results, budget=100)
+        algorithms = df["Algorithm"].tolist()
+        assert algorithms == ["BestAlg", "MidAlg", "WorstAlg"]
+
+    def test_compute_table_statistics(self):
+        """Test compute_table_statistics returns all expected fields."""
+        regrets = np.array([0.0, 1.0, 2.0, 3.0, 4.0])
+        stats = compute_table_statistics(regrets)
+
+        assert "mean" in stats
+        assert "median" in stats
+        assert "std" in stats
+        assert "iqr" in stats
+        assert "ci_lower" in stats
+        assert "ci_upper" in stats
+        assert "p_opt" in stats
+        assert "n_runs" in stats
+
+        assert stats["mean"] == 2.0
+        assert stats["median"] == 2.0
+        assert stats["n_runs"] == 5
+        assert stats["ci_lower"] <= stats["mean"] <= stats["ci_upper"]
+
+    def test_create_aggregate_table(self):
+        """Test create_aggregate_table produces cross-problem comparison."""
+        results_by_problem = {
+            "OneMax": {
+                ("RLS", 100): [{"regret": 0.0}, {"regret": 0.5}],
+                ("EA", 100): [{"regret": 1.0}, {"regret": 1.5}],
+            },
+            "LeadingOnes": {
+                ("RLS", 100): [{"regret": 0.5}, {"regret": 1.0}],
+                ("EA", 100): [{"regret": 0.1}, {"regret": 0.2}],
+            },
+        }
+        df = create_aggregate_table(results_by_problem, budget=100)
+
+        assert len(df) == 2
+        assert "Algorithm" in df.columns
+        assert "Avg Mean SR" in df.columns  # SR = Simple Regret
+        assert "Avg P(opt)" in df.columns
+        assert "Best Count" in df.columns
+        assert "Problems" in df.columns
+
+        # RLS is best on OneMax, EA is best on LeadingOnes
+        rls_row = df[df["Algorithm"] == "RLS"].iloc[0]
+        ea_row = df[df["Algorithm"] == "EA"].iloc[0]
+        assert rls_row["Best Count"] == 1
+        assert ea_row["Best Count"] == 1
+        assert rls_row["Problems"] == 2
+        assert ea_row["Problems"] == 2
+
+    def test_export_latex_table(self, tmp_path):
+        """Test export_latex_table writes valid LaTeX file."""
+        import pandas as pd
+
+        df = pd.DataFrame({"Algorithm": ["RLS", "EA"], "Mean": ["1.0", "2.0"]})
+        save_path = str(tmp_path / "table.tex")
+        export_latex_table(df, save_path)
+
+        # Verify file was created and contains LaTeX table markers
+        with open(save_path) as f:
+            content = f.read()
+        assert "\\begin{tabular}" in content
+        assert "\\end{tabular}" in content
+        assert "RLS" in content
+        assert "EA" in content
+
+    def test_export_table_csv(self, tmp_path):
+        """Test export_table with CSV format."""
+        import pandas as pd
+
+        df = pd.DataFrame({"Algorithm": ["RLS", "EA"], "Mean": ["1.0", "2.0"]})
+        save_path = tmp_path / "table.csv"
+        export_table(df, save_path, TableFormat.CSV)
+
+        with open(save_path) as f:
+            content = f.read()
+        assert "Algorithm,Mean" in content
+        assert "RLS,1.0" in content
+        assert "EA,2.0" in content
+
+    def test_export_table_markdown(self, tmp_path):
+        """Test export_table with Markdown format."""
+        import pandas as pd
+
+        df = pd.DataFrame({"Algorithm": ["RLS", "EA"], "Mean": ["1.0", "2.0"]})
+        save_path = tmp_path / "table.md"
+        export_table(df, save_path, TableFormat.MARKDOWN)
+
+        with open(save_path) as f:
+            content = f.read()
+        assert "Algorithm" in content
+        assert "RLS" in content
+        assert "|" in content  # Markdown table uses pipes
+
+
+class TestAnalysisProfiles:
+    """Test suite for analysis.profiles module."""
+
+    def test_run_profile_analysis_basic(self):
+        """Test run_profile_analysis returns expected structure."""
+        results = {
+            "RLS": [
+                {
+                    "trajectory": [
+                        (1, 1.0, 1.0),
+                        (2, 2.0, 2.0),
+                        (3, 3.0, 3.0),
+                        (4, 4.0, 4.0),
+                        (5, 5.0, 5.0),
+                    ]
+                },
+                {
+                    "trajectory": [
+                        (1, 1.0, 1.0),
+                        (2, 1.5, 1.5),
+                        (3, 2.5, 2.5),
+                        (4, 3.5, 3.5),
+                        (5, 4.5, 4.5),
+                    ]
+                },
+            ],
+        }
+        time_grid, fitness_levels, inv_profiles, empirical_ecr, profile_ecr = run_profile_analysis(
+            results, f_star=5.0, budget=5
+        )
+
+        # Check return types
+        assert isinstance(time_grid, np.ndarray)
+        assert isinstance(fitness_levels, np.ndarray)
+        assert isinstance(inv_profiles, dict)
+        assert isinstance(empirical_ecr, dict)
+        assert isinstance(profile_ecr, dict)
+
+        # Check RLS is in results
+        assert "RLS" in inv_profiles
+        assert "RLS" in empirical_ecr
+        assert "RLS" in profile_ecr
+
+    def test_run_profile_analysis_multiple_algorithms(self):
+        """Test run_profile_analysis handles multiple algorithms."""
+        results = {
+            "RLS": [
+                {
+                    "trajectory": [
+                        (1, 1.0, 1.0),
+                        (2, 2.0, 2.0),
+                        (3, 3.0, 3.0),
+                    ]
+                },
+            ],
+            "EA": [
+                {
+                    "trajectory": [
+                        (1, 1.5, 1.5),
+                        (2, 2.5, 2.5),
+                        (3, 3.0, 3.0),
+                    ]
+                },
+            ],
+        }
+        time_grid, fitness_levels, inv_profiles, empirical_ecr, profile_ecr = run_profile_analysis(
+            results, f_star=3.0, budget=3
+        )
+
+        assert "RLS" in inv_profiles
+        assert "EA" in inv_profiles
+        assert "RLS" in empirical_ecr
+        assert "EA" in empirical_ecr
+
+
+class TestMetricsEdgeCasesExtended:
+    """Extended edge case tests for metrics."""
+
+    def test_cumulative_regret_empty_trajectory(self):
+        """Test cumulative_regret with empty trajectory."""
+        trajectory = []
+        f_star = 10.0
+        cum_regrets = cumulative_regret(trajectory, f_star, track_incumbent=True)
+        assert len(cum_regrets) == 0
+
+    def test_cumulative_regret_single_point(self):
+        """Test cumulative_regret with single point trajectory."""
+        trajectory = [(1, 5.0, 5.0)]
+        f_star = 10.0
+        cum_regrets = cumulative_regret(trajectory, f_star, track_incumbent=True)
+        assert len(cum_regrets) == 1
+        # First cumulative regret starts from 0
+        assert cum_regrets[0][1] == 0.0
+
+    def test_instantaneous_regret_empty_trajectory(self):
+        """Test instantaneous_regret with empty trajectory."""
+        trajectory = []
+        f_star = 10.0
+        inst_regrets = instantaneous_regret(trajectory, f_star, track_incumbent=True)
+        assert len(inst_regrets) == 0
+
+    def test_instantaneous_regret_use_current(self):
+        """Test instantaneous_regret with track_incumbent=False (use current value)."""
+        trajectory = [
+            (1, 5.0, 5.0),
+            (2, 3.0, 5.0),  # current=3, best=5
+            (3, 6.0, 6.0),
+        ]
+        f_star = 10.0
+        inst_regrets = instantaneous_regret(trajectory, f_star, track_incumbent=False)
+        # With track_incumbent=False, regret is based on current value
+        regret_values = [r[1] for r in inst_regrets]
+        # At t=2, current=3, so regret = 10 - 3 = 7
+        assert regret_values[1] == 7.0
+
+    def test_ttfo_empty_trajectory(self):
+        """Test ttfo with empty trajectory."""
+        trajectory = []
+        f_star = 10.0
+        result = ttfo(trajectory, f_star, tolerance=1e-9)
+        assert result is None
+
+    def test_ttfo_immediate_optimum(self):
+        """Test ttfo when optimum is found immediately."""
+        trajectory = [(1, 10.0, 10.0)]
+        f_star = 10.0
+        result = ttfo(trajectory, f_star, tolerance=1e-9)
+        assert result == 1
+
+
+class TestTimeToTarget:
+    """Test suite for time-to-target regret metric."""
+
+    def test_time_to_target_reached(self):
+        """Test time_to_target when target is reached."""
+        trajectory = [
+            (1, 5.0, 5.0),
+            (2, 7.0, 7.0),
+            (3, 9.0, 9.0),
+        ]
+        f_star = 10.0
+        # Target regret of 1.0 means fitness >= 9.0
+        result = time_to_target(trajectory, f_star, target_regret=1.0)
+        assert result == 3
+
+    def test_time_to_target_not_reached(self):
+        """Test time_to_target when target is never reached."""
+        trajectory = [
+            (1, 5.0, 5.0),
+            (2, 6.0, 6.0),
+        ]
+        f_star = 10.0
+        # Target regret of 0.5 means fitness >= 9.5 (never reached)
+        result = time_to_target(trajectory, f_star, target_regret=0.5)
+        assert result is None
+
+    def test_time_to_target_immediate(self):
+        """Test time_to_target when target is reached immediately."""
+        trajectory = [(1, 9.5, 9.5)]
+        f_star = 10.0
+        result = time_to_target(trajectory, f_star, target_regret=1.0)
+        assert result == 1
+
+    def test_time_to_target_equivalence_to_ttfo(self):
+        """Test that time_to_target with 0.0 regret is equivalent to ttfo."""
+        trajectory = [
+            (1, 5.0, 5.0),
+            (2, 8.0, 8.0),
+            (3, 10.0, 10.0),
+        ]
+        f_star = 10.0
+        ttfo_result = ttfo(trajectory, f_star, tolerance=1e-9)
+        ttt_result = time_to_target(trajectory, f_star, target_regret=0.0, tolerance=1e-9)
+        assert ttfo_result == ttt_result == 3
+
+    def test_time_to_target_with_tolerance(self):
+        """Test time_to_target respects tolerance parameter."""
+        trajectory = [
+            (1, 8.0, 8.0),
+            (2, 9.99, 9.99),  # Within tolerance of 10.0
+        ]
+        f_star = 10.0
+        result = time_to_target(trajectory, f_star, target_regret=0.0, tolerance=0.1)
+        assert result == 2
+
+
+class TestNormalizedRegret:
+    """Test suite for normalized regret metric."""
+
+    def test_normalized_regret_optimal(self):
+        """Test normalized regret at optimum."""
+        nr = normalized_regret(solution_value=10.0, f_star=10.0, f_worst=0.0)
+        assert nr == 0.0
+
+    def test_normalized_regret_worst(self):
+        """Test normalized regret at worst case."""
+        nr = normalized_regret(solution_value=0.0, f_star=10.0, f_worst=0.0)
+        assert nr == 1.0
+
+    def test_normalized_regret_middle(self):
+        """Test normalized regret at midpoint."""
+        nr = normalized_regret(solution_value=5.0, f_star=10.0, f_worst=0.0)
+        assert nr == 0.5
+
+    def test_normalized_regret_scale_invariance(self):
+        """Test that normalized regret is scale-invariant."""
+        # Problem A: optimum=10, worst=0, solution=7 -> regret=3, NR=3/10=0.3
+        nr_a = normalized_regret(solution_value=7.0, f_star=10.0, f_worst=0.0)
+        # Problem B: optimum=100, worst=0, solution=70 -> regret=30, NR=30/100=0.3
+        nr_b = normalized_regret(solution_value=70.0, f_star=100.0, f_worst=0.0)
+        assert abs(nr_a - nr_b) < 1e-9
+
+    def test_normalized_regret_nonzero_worst(self):
+        """Test normalized regret with non-zero worst value."""
+        # Jump function example: f_star=13, f_worst=1, solution=10
+        nr = normalized_regret(solution_value=10.0, f_star=13.0, f_worst=1.0)
+        expected = (13.0 - 10.0) / (13.0 - 1.0)  # 3/12 = 0.25
+        assert abs(nr - expected) < 1e-9
+
+    def test_normalized_regret_degenerate_optimal(self):
+        """Test normalized regret when f_star == f_worst and solution is optimal."""
+        nr = normalized_regret(solution_value=5.0, f_star=5.0, f_worst=5.0)
+        assert nr == 0.0
+
+    def test_normalized_regret_degenerate_suboptimal(self):
+        """Test normalized regret when f_star == f_worst and solution is suboptimal."""
+        nr = normalized_regret(solution_value=4.0, f_star=5.0, f_worst=5.0)
+        assert nr == 1.0
+
+
+class TestExpectedSimpleRegret:
+    """Test suite for expected simple regret metric."""
+
+    def test_expected_simple_regret_basic(self):
+        """Test expected simple regret with basic values."""
+        regrets = np.array([0.0, 1.0, 2.0, 3.0, 4.0])
+        esr = expected_simple_regret(regrets)
+        assert esr == 2.0
+
+    def test_expected_simple_regret_all_optimal(self):
+        """Test expected simple regret when all runs are optimal."""
+        regrets = np.array([0.0, 0.0, 0.0])
+        esr = expected_simple_regret(regrets)
+        assert esr == 0.0
+
+    def test_expected_simple_regret_single_run(self):
+        """Test expected simple regret with single run."""
+        regrets = np.array([5.0])
+        esr = expected_simple_regret(regrets)
+        assert esr == 5.0
+
+    def test_expected_simple_regret_equivalence_to_compute_statistics(self):
+        """Test that expected_simple_regret matches compute_statistics['mean']."""
+        regrets = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+        esr = expected_simple_regret(regrets)
+        stats_mean = compute_statistics(regrets)["mean"]
+        assert esr == stats_mean
+
+    def test_expected_simple_regret_rejects_empty(self):
+        """Test that expected_simple_regret rejects empty array."""
+        with pytest.raises(ValueError, match="non-empty"):
+            expected_simple_regret(np.array([]))
+
+    def test_expected_simple_regret_rejects_2d(self):
+        """Test that expected_simple_regret rejects 2D array."""
+        with pytest.raises(ValueError, match="non-empty 1D"):
+            expected_simple_regret(np.array([[1.0, 2.0], [3.0, 4.0]]))
+
+
+class TestProblemWorstValues:
+    """Test suite for f_worst property in Problem classes."""
+
+    def test_onemax_f_worst(self):
+        """Test that OneMax has correct f_worst."""
+        from regret.problems.pseudo_boolean import OneMax
+
+        problem = OneMax(n=10)
+        assert problem.f_worst == 0.0
+        assert problem.f_star == 10.0
+
+    def test_jump_f_worst(self):
+        """Test that Jump has correct f_worst."""
+        from regret.problems.pseudo_boolean import Jump
+
+        problem = Jump(n=10, k=3)
+        assert problem.f_worst == 1.0
+        assert problem.f_star == 13.0
+
+    def test_twomax_f_worst(self):
+        """Test that TwoMax has correct f_worst."""
+        from regret.problems.pseudo_boolean import TwoMax
+
+        problem = TwoMax(n=10)
+        assert problem.f_worst == 5.0  # (10+1)//2 = 5
+        assert problem.f_star == 10.0
+
+    def test_twomax_f_worst_odd_n(self):
+        """Test TwoMax f_worst with odd dimension."""
+        from regret.problems.pseudo_boolean import TwoMax
+
+        problem = TwoMax(n=11)
+        assert problem.f_worst == 6.0  # (11+1)//2 = 6
+        assert problem.f_star == 11.0
+
+    def test_hiff_f_worst(self):
+        """Test that HIFF has correct f_worst."""
+        from regret.problems.pseudo_boolean import HIFF
+
+        problem = HIFF(n=8)
+        assert problem.f_worst == 8.0
+        # HIFF optimum: n * (log2(n) + 1) = 8 * (3 + 1) = 32
+        assert problem.f_star == 32.0
+
+    def test_normalized_regret_with_jump(self):
+        """Integration test: normalized regret with Jump problem."""
+        from regret.problems.pseudo_boolean import Jump
+
+        problem = Jump(n=10, k=3)
+        # Test with a solution value of 10
+        nr = normalized_regret(
+            solution_value=10.0,
+            f_star=problem.f_star,
+            f_worst=problem.f_worst,
+        )
+        # (13 - 10) / (13 - 1) = 3 / 12 = 0.25
+        assert abs(nr - 0.25) < 1e-9
