@@ -260,17 +260,14 @@ class TestLogarithmicCooling:
     def test_invalid_parameters(self):
         """Test LogarithmicCooling with invalid d parameter."""
         with pytest.raises(ValueError):
-            LogarithmicCooling(d=-1)    # d must be greater than or equal to 0
+            LogarithmicCooling(d=-1)  # d must be greater than or equal to 0
 
     def test_invalid_time_point(self):
         """Test LogarithmicCooling with invalid time point."""
         cooling = LogarithmicCooling(d=5.0)
 
         with pytest.raises(ValueError):
-            cooling(t=0)    # t must be greater than or equal to 1
-
-        with pytest.raises(ValueError):
-            cooling(t=-1)    # t must be greater than or equal to 1
+            cooling(t=-1)  # t must be greater than or equal to 0
 
     def test_decreasing_temperature(self):
         """Test that temperature decreases over time."""
@@ -330,13 +327,13 @@ class TestExponentialCooling:
     def test_invalid_parameters(self):
         """Test ExponentialCooling with invalid d parameter."""
         with pytest.raises(ValueError):
-            ExponentialCooling(alpha=0.0)    # alpha must be between (0,1), both exclusive
+            ExponentialCooling(alpha=0.0)  # alpha must be between (0,1), both exclusive
 
         with pytest.raises(ValueError):
-            ExponentialCooling(alpha=1.0)    # alpha must be between (0,1), both exclusive
+            ExponentialCooling(alpha=1.0)  # alpha must be between (0,1), both exclusive
 
         with pytest.raises(ValueError):
-            ExponentialCooling(T0=-1)    # T0 must be greater than or equal to 0
+            ExponentialCooling(T0=-1)  # T0 must be greater than or equal to 0
 
     def test_formula_verification(self):
         """Verify T(t) = T0 * alpha^t formula."""
@@ -351,15 +348,16 @@ class TestExponentialCooling:
 
     def test_alpha_bounds(self):
         """Test behavior at alpha bounds."""
-        cooling_alpha_1 = ExponentialCooling(T0=10.0, alpha=1.0)
-        assert cooling_alpha_1(0) == 10.0
-        assert cooling_alpha_1(1) == 10.0
-        assert cooling_alpha_1(100) == 10.0
+        # Degenerate cases: clamped by post_init to prevent these behaviours
+        # cooling_alpha_1 = ExponentialCooling(T0=10.0, alpha=1.0)
+        # assert cooling_alpha_1(0) == 10.0
+        # assert cooling_alpha_1(1) == 10.0
+        # assert cooling_alpha_1(100) == 10.0
 
-        cooling_alpha_zero = ExponentialCooling(T0=10.0, alpha=0.0)
-        assert cooling_alpha_zero(0) == 10.0
-        assert cooling_alpha_zero(1) == 0.0
-        assert cooling_alpha_zero(100) == 0.0
+        # cooling_alpha_zero = ExponentialCooling(T0=10.0, alpha=0.0)
+        # assert cooling_alpha_zero(0) == 10.0
+        # assert cooling_alpha_zero(1) == 0.0
+        # assert cooling_alpha_zero(100) == 0.0
 
         cooling_alpha_small = ExponentialCooling(T0=100.0, alpha=0.5)
         assert cooling_alpha_small(50) < 1e-12

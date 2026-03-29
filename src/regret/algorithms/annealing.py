@@ -210,8 +210,8 @@ class ExponentialCooling(CoolingSchedule):
         Returns:
             Temperature value T0 * alpha**t.
         """
-        if t < 1:
-            raise ValueError("The value of `t` cannot be less than 1")
+        if t < 0:
+            raise ValueError("The value of `t` cannot be less than 0")
         return self.T0 * (self.alpha**t)
 
 
@@ -241,6 +241,6 @@ class LinearCooling(CoolingSchedule):
         Returns:
             Temperature value clipped to not fall below Tf.
         """
-        if t < 1:
-            raise ValueError("The value of `t` cannot be less than 1")
+        if t < 0:
+            raise ValueError("The value of `t` cannot be less than 0")
         return max(self.Tf, self.T0 - (self.T0 - self.Tf) * t / self.max_iter)
