@@ -203,6 +203,81 @@ def ttfo(trajectory: Trajectory, f_star: float, tolerance: float = 1e-9) -> int 
     return None
 
 
+def time_to_target(
+    trajectory: Trajectory,
+    f_star: float,
+    target_regret: float,
+    tolerance: float = 1e-9,
+) -> int | None:
+    """Compute time to reach a target regret threshold.
+
+    This generalizes TTFO (time-to-first-optimum):
+    - ttfo(traj, f_star) ≡ time_to_target(traj, f_star, target_regret=0.0)
+
+    Args:
+        trajectory: Sequence of (evaluations, current_value, best_value) tuples.
+        f_star: Global optimum value.
+        target_regret: Regret threshold to achieve (e.g., 1.0 for "within 1 of optimum").
+        tolerance: Floating-point tolerance for comparisons.
+
+    Returns:
+        First evaluation where regret <= target_regret, or None if never reached.
+    """
+    target_fitness = f_star - target_regret
+    for t, _, best_value in trajectory:
+        if best_value >= target_fitness - tolerance:
+            return t
+    return None
+
+
+def normalized_regret(
+    solution_value: float,
+    f_star: float,
+    f_worst: float,
+) -> float:
+    """Compute normalized regret scaled to [0, 1].
+
+    Normalized regret allows comparison across problems with different
+    fitness scales: NR = (f* - f(x)) / (f* - f_worst).
+
+    Args:
+        solution_value: Objective value of the solution.
+        f_star: Global optimum value.
+        f_worst: Worst possible fitness value.
+
+    Returns:
+        Normalized regret in [0, 1], where 0 means optimal and 1 means worst.
+
+    Raises:
+        ValueError: If f_star == f_worst (degenerate problem).
+    """
+    if f_star == f_worst:
+        # Degenerate case: all solutions have the same fitness
+        return 0.0 if solution_value >= f_star else 1.0
+    return (f_star - solution_value) / (f_star - f_worst)
+
+
+def expected_simple_regret(regrets: np.ndarray) -> float:
+    """Compute expected (mean) simple regret E[SR(T)] across runs.
+
+    This is the standard metric for fixed-budget optimization comparison.
+    Equivalent to compute_statistics(regrets)["mean"] but semantically explicit.
+
+    Args:
+        regrets: Array of simple regret values from independent runs.
+
+    Returns:
+        Mean simple regret.
+
+    Raises:
+        ValueError: If regrets is empty or not 1D.
+    """
+    regrets_arr = np.asarray(regrets, dtype=float)
+    if regrets_arr.ndim != 1 or regrets_arr.size == 0:
+        raise ValueError("regrets must be a non-empty 1D array.")
+    return float(np.mean(regrets_arr))
+
+
 def inv_runtime_profile_single_run(
     trajectory: Trajectory,
     fitness_levels: np.ndarray,
