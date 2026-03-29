@@ -172,6 +172,7 @@ regret/
 └── src/regret/
     ├── cli.py                            # Typer CLI entry point (single or multi-config)
     ├── _types.py                         # Centralized type aliases and TypedDicts
+    ├── _registry.py                      # PROBLEM_REGISTRY, ALGORITHM_REGISTRY, COOLING_REGISTRY
     │
     ├── core/
     │   ├── base.py                       # Abstract base classes: Problem, Algorithm
@@ -196,7 +197,6 @@ regret/
     │   └── ...                           # Interactive trajectory visualization tools
     │
     └── experiments/
-        ├── __init__.py                   # PROBLEM_REGISTRY, ALGORITHM_REGISTRY, COOLING_REGISTRY
         ├── schema.py                     # JSON Schema definition for YAML configs
         ├── validation.py                 # Schema + semantic validation pipeline
         ├── orchestration.py              # Execution planning and dispatch
