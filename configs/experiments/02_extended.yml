@@ -163,13 +163,6 @@ plotting:
       enabled: true
       filename: "performance_profile_b{budget}.pdf"
 
-    history_current:
-      enabled: false
-      filename: "history_current.pdf"
-      series: "current"
-      log_x: false
-      log_y: false
-      show_ttfo_markers: false
 
     history_best:
       enabled: true
@@ -194,7 +187,6 @@ plotting:
       series: "cumulative"
       track_incumbent: false
       log_x: false
-      log_y: false
       show_ttfo_markers: true
 
     regret_instantaneous_best:
@@ -212,21 +204,8 @@ plotting:
       series: "cumulative"
       track_incumbent: true
       log_x: false
-      log_y: false
       show_ttfo_markers: true
 
     ttfo_distribution:
       enabled: true
       filename: "history_ttfo_markers.pdf"
-
-    inverse_runtime_profile_surface:
-      enabled: false
-      filename: "inverse_runtime_profile_surface_{algorithm}.pdf"
-
-    inverse_runtime_profile_curves:
-      enabled: false
-      filename: "inverse_runtime_profile_curves.pdf"
-
-    cr_profile_verification:
-      enabled: false
-      filename: "cr_profile_verification.pdf"

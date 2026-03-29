@@ -2,27 +2,26 @@ suite:
   name: "01_baseline"
   description: >
     Algorithm-family comparison across pseudo-boolean problems of increasing
-    difficulty. 
-    - Research question: 
+    difficulty.
+    - Research question:
       - At which budget does each algorithm family (local search,
         evolutionary, simulated annealing) overtake the others, and
       - Does the regret trajectory reveal the crossover point before TTFO does?
     - Notes:
       - BinVal is retained: its exponential fitness structure (optimum=2^50-1)
         produces large fitness gaps and very fast convergence for all algorithms,
-        providing a qualitative contrast with the other problems; 
-        - CR_profile_verification is disabled suite-wide because BinVal violates 
-          the integer-level-increment assumption of the tail-sum formula. 
-        - Profile surface and profile curve plots are also disabled, 
+        providing a qualitative contrast with the other problems;
+        - CR_profile_verification is disabled suite-wide because BinVal violates
+          the integer-level-increment assumption of the tail-sum formula.
+        - Profile surface and profile curve plots are also disabled,
           this suite's question is algorithm-family comparison, and profile
           analysis is the primary output of suites 05, 08, and 12; adding them here would
           generate many output files without serving the suite's hypothesis.
       - SA reduced to a single representative schedule (SA-Log-d_2.0) to keep the
-        algorithm-family distinction clean; 
-      - Budget ceiling raised to 10000 to include the regime where LeadingOnes and 
-        Jump-3 actually converge; 
+        algorithm-family distinction clean;
+      - Budget ceiling raised to 10000 to include the regime where LeadingOnes and
+        Jump-3 actually converge;
       - budget_for_plots set per-problem relative to E[TTFO].
-
 
   runs: 50
   mode: "full"
@@ -142,11 +141,11 @@ plotting:
 
     history_current:
       enabled: false
-      filename: "history_current.pdf"
-      series: "current"
-      log_x: false
-      log_y: false
-      show_ttfo_markers: false
+      # filename: "history_current.pdf"
+      # series: "current"
+      # log_x: false
+      # log_y: false
+      # show_ttfo_markers: false
 
     history_best:
       enabled: true
@@ -197,15 +196,15 @@ plotting:
       filename: "history_ttfo_markers.pdf"
       annotate_pairwise: true
       reference_algorithm: "RLS"
-
+    # Omitted graphs & `enabled: false` graphs are treated the same
     inverse_runtime_profile_surface:
       enabled: false
-      filename: "inverse_runtime_profile_surface_{algorithm}.pdf"
+      # filename: "inverse_runtime_profile_surface_{algorithm}.pdf"
 
     inverse_runtime_profile_curves:
       enabled: false
-      filename: "inverse_runtime_profile_curves.pdf"
+      # filename: "inverse_runtime_profile_curves.pdf"
 
     cr_profile_verification:
       enabled: false
-      filename: "cr_profile_verification.pdf"
+      # filename: "cr_profile_verification.pdf"

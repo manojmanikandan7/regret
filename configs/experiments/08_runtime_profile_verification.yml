@@ -73,26 +73,6 @@ plotting:
       enabled: true
       filename: "convergence_probability.pdf"
 
-    comparison_heatmap:
-      enabled: false
-      filename: "comparison_heatmap.pdf"
-
-    regret_boxplots:
-      enabled: false
-      filename: "regret_boxplot_b{budget}.pdf"
-
-    performance_profile:
-      enabled: false
-      filename: "performance_profile_b{budget}.pdf"
-
-    history_current:
-      enabled: false
-      filename: "history_current.pdf"
-      series: "current"
-      log_x: false
-      log_y: false
-      show_ttfo_markers: false
-
     history_best:
       enabled: true
       filename: "history_best.pdf"
@@ -116,17 +96,7 @@ plotting:
       series: "cumulative"
       track_incumbent: false
       log_x: false
-      log_y: false
       show_ttfo_markers: true
-
-    regret_instantaneous_best:
-      enabled: false
-      filename: "history_regret_instantaneous_best.pdf"
-      series: "instantaneous"
-      track_incumbent: true
-      log_x: false
-      log_y: true
-      show_ttfo_markers: false
 
     regret_cumulative_best:
       enabled: true
@@ -134,7 +104,6 @@ plotting:
       series: "cumulative"
       track_incumbent: true
       log_x: false
-      log_y: false
       show_ttfo_markers: true
 
     ttfo_distribution:

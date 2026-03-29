@@ -166,14 +166,6 @@ plotting:
       annotate_pairwise: true
       reference_algorithm: "RLS"
 
-    history_current:
-      enabled: false
-      filename: "history_current.pdf"
-      series: "current"
-      log_x: false
-      log_y: false
-      show_ttfo_markers: false
-
     history_best:
       enabled: true
       filename: "history_best.pdf"
@@ -197,17 +189,7 @@ plotting:
       series: "cumulative"
       track_incumbent: false
       log_x: false
-      log_y: false
       show_ttfo_markers: true
-
-    regret_instantaneous_best:
-      enabled: false
-      filename: "history_regret_instantaneous_best.pdf"
-      series: "instantaneous"
-      track_incumbent: true
-      log_x: false
-      log_y: true
-      show_ttfo_markers: false
 
     regret_cumulative_best:
       enabled: true
@@ -215,7 +197,6 @@ plotting:
       series: "cumulative"
       track_incumbent: true
       log_x: false
-      log_y: false
       show_ttfo_markers: true
 
     ttfo_distribution:
@@ -223,15 +204,3 @@ plotting:
       filename: "history_ttfo_markers.pdf"
       annotate_pairwise: true
       reference_algorithm: "RLS"
-
-    inverse_runtime_profile_surface:
-      enabled: false
-      filename: "inverse_runtime_profile_surface_{algorithm}.pdf"
-
-    inverse_runtime_profile_curves:
-      enabled: false
-      filename: "inverse_runtime_profile_curves.pdf"
-
-    cr_profile_verification:
-      enabled: false
-      filename: "cr_profile_verification.pdf"

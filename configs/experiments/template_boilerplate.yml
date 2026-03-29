@@ -11,17 +11,17 @@ suite:
   description: >
     Short statement of your experiment question and expected outcome.
   runs: 30
-  mode: "full"            # "lite" or "full"
+  mode: "full" # "lite" or "full"
   parallel: true
-  profile: false           # If false, runtime-profile plots below must stay disabled.
+  profile: false # If false, runtime-profile plots below must stay disabled.
   budgets: [200, 500, 1000, 2000]
   output:
     raw_root: "results/raw"
-    figures_root: "results/figures"  # Required when plotting.enabled=true or suite.profile=true
+    figures_root: "results/figures" # Required when plotting.enabled=true or suite.profile=true
 
 problems:
   - name: "OneMax"
-    class: "OneMax"       # Must exist in PROBLEM_REGISTRY
+    class: "OneMax" # Must exist in PROBLEM_REGISTRY
     budget_for_plots: 1000 # Must be one of suite.budgets
     params:
       n: 100
@@ -36,7 +36,7 @@ problems:
 
 algorithms:
   - name: "RLS"
-    class: "RLS"          # Must exist in ALGORITHM_REGISTRY
+    class: "RLS" # Must exist in ALGORITHM_REGISTRY
     args:
       defaults: {}
       by_problem: {}
@@ -54,7 +54,7 @@ algorithms:
 
 plotting:
   enabled: true
-  budget_for_plots: 1000   # Optional global default; must be in suite.budgets when set
+  budget_for_plots: 1000 # Optional global default; must be in suite.budgets when set
   layout:
     per_problem_dir: true
     include_n_subdir: true
@@ -144,7 +144,7 @@ plotting:
       enabled: true
       filename: "history_ttfo_markers.pdf"
 
-    # Runtime profiling plots: keep disabled unless suite.profile=true.
+    # Runtime profiling plots: omit these sections unless suite.profile=true.
     inverse_runtime_profile_surface:
       enabled: false
       filename: "inverse_runtime_profile_surface_{algorithm}.pdf"
