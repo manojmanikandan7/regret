@@ -148,6 +148,15 @@ class LogarithmicCooling(CoolingSchedule):
 
     d: float = 1.0
 
+    def __post_init__(self):
+        """Validate class attributes
+
+        Raises:
+            ValueError: if d is less than 0
+        """
+        if self.d < 0.0:
+            raise ValueError("The value of `d` cannot be less than 0.0")
+
     def __call__(self, t: int) -> int | float:
         """Return logarithmic temperature at evaluation index t.
 
@@ -156,7 +165,12 @@ class LogarithmicCooling(CoolingSchedule):
 
         Returns:
             Temperature value d / log(t + 1).
+
+        Raises:
+            ValueError: if t is less than 1. Initial time point is 1.
         """
+        if t < 1:
+            raise ValueError("The value of `t` cannot be less than 1")
         return self.d / np.log(t + 1)
 
 
@@ -175,6 +189,18 @@ class ExponentialCooling(CoolingSchedule):
     T0: float = 1.0
     alpha: float = 0.95
 
+    def __post_init__(self):
+        """Validate class attributes
+
+        Raises:
+            ValueError: if alpha is outside (0,1) or T0 is negative
+        """
+        if self.alpha <= 0.0 or self.alpha >= 1.0:
+            raise ValueError("The value of `alpha` must be between (0,1), both exclusive")
+
+        if self.T0 < 0:
+            raise ValueError("The value of `t` cannot be less than 0")
+
     def __call__(self, t: int) -> int | float:
         """Return exponentially decayed temperature at evaluation index t.
 
@@ -184,6 +210,8 @@ class ExponentialCooling(CoolingSchedule):
         Returns:
             Temperature value T0 * alpha**t.
         """
+        if t < 1:
+            raise ValueError("The value of `t` cannot be less than 1")
         return self.T0 * (self.alpha**t)
 
 
@@ -213,4 +241,6 @@ class LinearCooling(CoolingSchedule):
         Returns:
             Temperature value clipped to not fall below Tf.
         """
+        if t < 1:
+            raise ValueError("The value of `t` cannot be less than 1")
         return max(self.Tf, self.T0 - (self.T0 - self.Tf) * t / self.max_iter)

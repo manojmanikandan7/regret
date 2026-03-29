@@ -5,6 +5,7 @@ import pytest
 
 from regret.algorithms.annealing import (
     ExponentialCooling,
+    LinearCooling,
     LogarithmicCooling,
     SimulatedAnnealing,
 )
@@ -243,35 +244,184 @@ class TestSimulatedAnnealing:
         assert isinstance(sa.T_func, LogarithmicCooling)
 
 
-class TestCoolingSchedules:
-    """Test suite for cooling schedules."""
+class TestLogarithmicCooling:
+    """Test suite for LogarithmicCooling schedule."""
 
-    def test_logarithmic_cooling_initialization(self):
-        """Test LogarithmicCooling can be initialized."""
-        cooling = LogarithmicCooling(d=10.0)
-        assert cooling.d == 10.0
+    def test_initialization(self):
+        """Test LogarithmicCooling default parameters."""
+        cooling = LogarithmicCooling()
+        assert cooling.d == 1.0
 
-    def test_logarithmic_cooling_decreases(self):
+    def test_custom_parameters(self):
+        """Test LogarithmicCooling with custom d parameter."""
+        cooling = LogarithmicCooling(d=5.0)
+        assert cooling.d == 5.0
+
+    def test_invalid_parameters(self):
+        """Test LogarithmicCooling with invalid d parameter."""
+        with pytest.raises(ValueError):
+            LogarithmicCooling(d=-1)    # d must be greater than or equal to 0
+
+    def test_invalid_time_point(self):
+        """Test LogarithmicCooling with invalid time point."""
+        cooling = LogarithmicCooling(d=5.0)
+
+        with pytest.raises(ValueError):
+            cooling(t=0)    # t must be greater than or equal to 1
+
+        with pytest.raises(ValueError):
+            cooling(t=-1)    # t must be greater than or equal to 1
+
+    def test_decreasing_temperature(self):
         """Test that temperature decreases over time."""
         cooling = LogarithmicCooling(d=10.0)
         t1 = cooling(1)
         t10 = cooling(10)
         t50 = cooling(50)
-        assert t1 >= t10 >= t50
+        t100 = cooling(100)
+        assert t1 >= t10 >= t50 >= t100
+        assert t1 > t10
 
-    def test_exponential_cooling_initialization(self):
-        """Test ExponentialCooling can be initialized."""
-        cooling = ExponentialCooling(T0=10.0, alpha=0.99)
-        assert cooling.T0 == 10.0
+    def test_formula_verification(self):
+        """Verify T(t) = d / log(t + 1) formula."""
+        import math
 
-    def test_exponential_cooling_decreases(self):
+        cooling = LogarithmicCooling(d=10.0)
+        assert abs(cooling(1) - 10.0 / math.log(2)) < 1e-9
+        assert abs(cooling(10) - 10.0 / math.log(11)) < 1e-9
+        assert abs(cooling(100) - 10.0 / math.log(101)) < 1e-9
+
+        cooling_d5 = LogarithmicCooling(d=5.0)
+        assert abs(cooling_d5(1) - 5.0 / math.log(2)) < 1e-9
+
+    def test_temperature_always_positive(self):
+        """Test that temperature is always positive for t >= 1."""
+        cooling = LogarithmicCooling(d=1.0)
+        assert cooling(1) > 0
+        assert cooling(1000) > 0
+        assert cooling(1000000) > 0
+
+
+class TestExponentialCooling:
+    """Test suite for ExponentialCooling schedule."""
+
+    def test_initialization(self):
+        """Test ExponentialCooling default parameters."""
+        cooling = ExponentialCooling()
+        assert cooling.T0 == 1.0
+        assert cooling.alpha == 0.95
+
+    def test_custom_parameters(self):
+        """Test ExponentialCooling with custom T0 and alpha."""
+        cooling = ExponentialCooling(T0=50.0, alpha=0.9)
+        assert cooling.T0 == 50.0
+        assert cooling.alpha == 0.9
+
+    def test_decreasing_temperature(self):
         """Test that temperature decreases exponentially."""
         cooling = ExponentialCooling(T0=10.0, alpha=0.99)
+        t0 = cooling(0)
         t1 = cooling(1)
         t10 = cooling(10)
-        assert t1 >= t10
-        # Verify it's actually exponential decay
-        assert t1 > t10
+        t100 = cooling(100)
+        assert t0 >= t1 >= t10 >= t100
+        assert t0 > t1
+
+    def test_invalid_parameters(self):
+        """Test ExponentialCooling with invalid d parameter."""
+        with pytest.raises(ValueError):
+            ExponentialCooling(alpha=0.0)    # alpha must be between (0,1), both exclusive
+
+        with pytest.raises(ValueError):
+            ExponentialCooling(alpha=1.0)    # alpha must be between (0,1), both exclusive
+
+        with pytest.raises(ValueError):
+            ExponentialCooling(T0=-1)    # T0 must be greater than or equal to 0
+
+    def test_formula_verification(self):
+        """Verify T(t) = T0 * alpha^t formula."""
+        cooling = ExponentialCooling(T0=10.0, alpha=0.9)
+        assert cooling(0) == 10.0
+        assert abs(cooling(1) - 10.0 * 0.9**1) < 1e-9
+        assert abs(cooling(10) - 10.0 * 0.9**10) < 1e-9
+        assert abs(cooling(100) - 10.0 * 0.9**100) < 1e-9
+
+        cooling_custom = ExponentialCooling(T0=50.0, alpha=0.95)
+        assert abs(cooling_custom(5) - 50.0 * 0.95**5) < 1e-9
+
+    def test_alpha_bounds(self):
+        """Test behavior at alpha bounds."""
+        cooling_alpha_1 = ExponentialCooling(T0=10.0, alpha=1.0)
+        assert cooling_alpha_1(0) == 10.0
+        assert cooling_alpha_1(1) == 10.0
+        assert cooling_alpha_1(100) == 10.0
+
+        cooling_alpha_zero = ExponentialCooling(T0=10.0, alpha=0.0)
+        assert cooling_alpha_zero(0) == 10.0
+        assert cooling_alpha_zero(1) == 0.0
+        assert cooling_alpha_zero(100) == 0.0
+
+        cooling_alpha_small = ExponentialCooling(T0=100.0, alpha=0.5)
+        assert cooling_alpha_small(50) < 1e-12
+
+
+class TestLinearCooling:
+    """Test suite for LinearCooling schedule."""
+
+    def test_initialization(self):
+        """Test LinearCooling default parameters."""
+        cooling = LinearCooling()
+        assert cooling.T0 == 1.0
+        assert cooling.Tf == 0.01
+        assert cooling.max_iter == 10000
+
+    def test_decreasing_temperature(self):
+        """Test that temperature decreases over time."""
+        cooling = LinearCooling(T0=100.0, Tf=10.0, max_iter=100)
+        t0 = cooling(0)
+        t25 = cooling(25)
+        t50 = cooling(50)
+        t75 = cooling(75)
+        t100 = cooling(100)
+        # Temperature should strictly decrease
+        assert t0 > t25 > t50 > t75 > t100
+        # Verify linear decrease (equal intervals should have equal decrements)
+        delta_0_25 = t0 - t25
+        delta_25_50 = t25 - t50
+        delta_50_75 = t50 - t75
+        delta_75_100 = t75 - t100
+        assert abs(delta_0_25 - delta_25_50) < 1e-9
+        assert abs(delta_25_50 - delta_50_75) < 1e-9
+        assert abs(delta_50_75 - delta_75_100) < 1e-9
+
+    def test_floor_at_Tf(self):
+        """Test that temperature doesn't go below Tf even past max_iter."""
+        cooling = LinearCooling(T0=100.0, Tf=10.0, max_iter=100)
+        # At max_iter, should be exactly Tf
+        assert cooling(100) == 10.0
+        # Beyond max_iter, temperature should be clamped to Tf
+        assert cooling(150) == 10.0
+        assert cooling(200) == 10.0
+        assert cooling(1000) == 10.0
+        # Significantly past max_iter
+        assert cooling(100000) == 10.0
+
+    def test_custom_parameters(self):
+        """Test LinearCooling with custom T0, Tf, max_iter."""
+        cooling = LinearCooling(T0=500.0, Tf=50.0, max_iter=900)
+        assert cooling.T0 == 500.0
+        assert cooling.Tf == 50.0
+        assert cooling.max_iter == 900
+        # At t=0, should be T0
+        assert cooling(0) == 500.0
+        # At t=max_iter, should be Tf
+        assert cooling(900) == 50.0
+        # At t=450 (halfway), should be exactly (T0 + Tf) / 2 = 275
+        assert cooling(450) == 275.0
+        # Verify formula: T(t) = T0 - (T0 - Tf) * t / max_iter
+        # T(450) = 500 - (500 - 50) * 450 / 900 = 500 - 450 * 0.5 = 500 - 225 = 275
+        expected_t450 = 500.0 - (500.0 - 50.0) * 450 / 900
+        assert abs(cooling(450) - expected_t450) < 1e-9
 
 
 class TestAlgorithmIntegration:
