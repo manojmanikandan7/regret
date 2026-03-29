@@ -1,0 +1,202 @@
+suite:
+  name: "14_population_dynamics"
+  description: >
+    Population-based EA study comparing (1+1)-EA against (μ+λ)-EA variants.
+
+    - Research questions:
+      1. How does population size (μ) affect regret trajectories on unimodal vs
+         multimodal landscapes?
+      2. Does the selection pressure ratio (μ/λ) influence the shape of cumulative
+         regret, particularly on deceptive problems where diversity preservation
+         matters?
+      3. At what budget does the overhead of population-based search (μ initial
+         evaluations) pay off compared to the (1+1)-EA baseline?
+
+    - Hypotheses:
+      - On unimodal problems (OneMax, LeadingOnes), (1+1)-EA should dominate due
+        to lower per-generation overhead;
+      - On multimodal problems (TwoMax, Jump), larger populations may maintain
+        diversity and escape local optima faster, showing lower cumulative regret
+        despite higher initial cost;
+      - High selection pressure (small μ, large λ) should behave similarly to
+        (1+1)-EA, while low selection pressure (large μ, small λ) should show
+        slower but more robust convergence.
+
+    - Design choices:
+      - Population configurations span three regimes: 
+        (1,1) ~~ (1+1)-EA baseline,
+        (5,5) moderate population with balanced selection,
+        (10,20) larger population with 2:1 offspring ratio (high selection pressure),
+        (20,10) larger population with 1:2 parent ratio (low selection pressure);
+      - Mutation rate fixed at 1/n across all variants to isolate population effects;
+      - Problems chosen to contrast unimodal (OneMax), sequential (LeadingOnes),
+        bimodal (TwoMax), and deceptive (Jump-3) fitness landscapes;
+      - Budget ceiling at 10000 to capture convergence on harder problems while
+        keeping runtime reasonable.
+
+  runs: 30
+  mode: "full"
+  parallel: true
+  profile: false
+  budgets: [500, 1000, 2000, 5000, 10000]
+  output:
+    raw_root: "results/raw"
+    figures_root: "results/figures"
+
+problems:
+  - name: "OneMax"
+    class: "OneMax"
+    budget_for_plots: 2000
+    params:
+      n: 100
+
+  - name: "LeadingOnes"
+    class: "LeadingOnes"
+    budget_for_plots: 10000
+    params:
+      n: 100
+
+  - name: "TwoMax"
+    class: "TwoMax"
+    budget_for_plots: 5000
+    params:
+      n: 100
+
+  - name: "Jump-3"
+    class: "Jump"
+    budget_for_plots: 10000
+    params:
+      n: 100
+      k: 3
+
+algorithms:
+  # Baseline: (1+1)-EA for comparison
+  - name: "(1+1)-EA"
+    class: "OnePlusOneEA"
+    args:
+      defaults:
+        mutation_rate: 0.01  # 1/n for n=100
+      by_problem: {}
+
+  # Minimal population: (1+1) selection, effectively similar to (1+1)-EA
+  # but with the (μ+λ) framework overhead
+  - name: "(1+1)-EA-framework"
+    class: "MuPlusLambdaEA"
+    args:
+      defaults:
+        mu: 1
+        lmbda: 1
+        mutation_rate: 0.01
+      by_problem: {}
+
+  # Moderate population with balanced selection pressure
+  - name: "(5+5)-EA"
+    class: "MuPlusLambdaEA"
+    args:
+      defaults:
+        mu: 5
+        lmbda: 5
+        mutation_rate: 0.01
+      by_problem: {}
+
+  # Larger population with high selection pressure (λ > μ)
+  # More offspring compete for fewer parent slots
+  - name: "(10+20)-EA"
+    class: "MuPlusLambdaEA"
+    args:
+      defaults:
+        mu: 10
+        lmbda: 20
+        mutation_rate: 0.01
+      by_problem: {}
+
+  # Larger population with low selection pressure (μ > λ)
+  # More parents, fewer offspring per generation - emphasizes diversity
+  - name: "(20+10)-EA"
+    class: "MuPlusLambdaEA"
+    args:
+      defaults:
+        mu: 20
+        lmbda: 10
+        mutation_rate: 0.01
+      by_problem: {}
+
+plotting:
+  enabled: true
+  layout:
+    per_problem_dir: true
+    include_n_subdir: true
+    structure:
+      aggregate: "aggregate"
+      history: "history"
+      distribution: "distributions"
+  titles:
+    include_problem_name: true
+    include_problem_size: true
+  plots:
+    regret_curves:
+      enabled: true
+      filename: "regret_curves.pdf"
+      log_scale: true
+
+    convergence_probability:
+      enabled: true
+      filename: "convergence_probability.pdf"
+
+    comparison_heatmap:
+      enabled: true
+      filename: "comparison_heatmap.pdf"
+
+    regret_boxplots:
+      enabled: true
+      filename: "regret_boxplot_b{budget}.pdf"
+
+    performance_profile:
+      enabled: true
+      filename: "performance_profile_b{budget}.pdf"
+
+    history_best:
+      enabled: true
+      filename: "history_best.pdf"
+      series: "best"
+      log_x: false
+      log_y: false
+      show_ttfo_markers: true
+
+    regret_instantaneous:
+      enabled: true
+      filename: "history_regret_instantaneous.pdf"
+      series: "instantaneous"
+      track_incumbent: false
+      log_x: false
+      log_y: true
+      show_ttfo_markers: true
+
+    regret_cumulative:
+      enabled: true
+      filename: "history_regret_cumulative.pdf"
+      series: "cumulative"
+      track_incumbent: false
+      log_x: false
+      show_ttfo_markers: true
+
+    regret_instantaneous_best:
+      enabled: true
+      filename: "history_regret_instantaneous_best.pdf"
+      series: "instantaneous"
+      track_incumbent: true
+      log_x: false
+      log_y: true
+      show_ttfo_markers: true
+
+    regret_cumulative_best:
+      enabled: true
+      filename: "history_regret_cumulative_best.pdf"
+      series: "cumulative"
+      track_incumbent: true
+      log_x: false
+      show_ttfo_markers: true
+
+    ttfo_distribution:
+      enabled: true
+      filename: "history_ttfo_markers.pdf"
