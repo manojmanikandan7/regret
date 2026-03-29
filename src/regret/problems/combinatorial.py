@@ -69,7 +69,8 @@ class MaxkSAT(Problem):
         for variables, negations in self.clauses:
             clause_sat = False
             for var, neg in zip(variables, negations, strict=False):
-                # If the variable in x is true and if the corresponding variable is not negated, the clause is satisfied
+                # A literal is satisfied when its value matches its polarity:
+                # positive literal (neg=0) needs x[var]=1; negated literal (neg=1) needs x[var]=0.
                 if (x[var] == 1) != (neg == 1):
                     clause_sat = True
                     break
@@ -89,6 +90,9 @@ class MaxkSAT(Problem):
             never reach zero, and cumulative regret will appear artificially
             high. This choice is intentional for theoretical analysis but may
             not be appropriate for practical comparisons.
+
+            Subclasses may override this class, providing tighter bounds
+            (As in the case for concrete MaxSAT instances).
         """
         # For random MaxSAT, optimum is typically all clauses satisfied
         return float(self.m)

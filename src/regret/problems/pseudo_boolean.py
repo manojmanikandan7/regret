@@ -155,6 +155,14 @@ class TwoMax(Problem):
         """Return the global optimum value."""
         return float(self.n)
 
+    def get_worst_value(self) -> float:
+        """Return the worst possible fitness value.
+
+        The worst case for TwoMax occurs when the bitstring is balanced
+        (equal distance from both optima), giving max(n/2, n/2) = n/2.
+        """
+        return float((self.n + 1) // 2)
+
 
 class BinVal(Problem):
     """Binary value: weighted sum with exponential weights.
@@ -346,3 +354,11 @@ class HIFF(Problem):
         # Total = n * (log2(n) + 1)
         levels = int(np.log2(self.n)) + 1
         return float(self.n * levels)
+
+    def get_worst_value(self) -> float:
+        """Return the worst possible fitness value.
+
+        The worst case for HIFF occurs when no blocks match at any level
+        beyond the base level, giving only the n singleton contributions.
+        """
+        return float(self.n)
