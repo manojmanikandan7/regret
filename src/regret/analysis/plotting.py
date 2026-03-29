@@ -1373,9 +1373,11 @@ def plot_cr_profile_verification(
     """Verify the tail-sum formula by comparing E[CR(T)] from two derivations.
 
     Plots expected cumulative regret computed both directly (from per-run CR)
-    and via the inverse runtime profile. These should match for integer-valued,
-    unit-increment fitness functions; any gap indicates an error in trajectory
-    recording or metric computation.
+    and via the inverse runtime profile. These should match for any fitness
+    function; any meaningful gap indicates an error in trajectory recording or
+    metric computation. For non-integer or non-unit-increment fitness the
+    profile-derived curve is a numerical Riemann sum approximation, so minor
+    discrepancies reflect discretisation error rather than a bug.
 
     Direct derivation:
         Mean of per-run cumulative regret (track_incumbent=True)
@@ -1384,9 +1386,14 @@ def plot_cr_profile_verification(
         Sum_{v=1}^{f*} Sum_{t'=1}^{T} [1 - P(\\tau_v <= t')]
         {inverse profile: P(\\tau_v <= t); P(\\tau_v > t) = 1 - P(\\tau_v <= t)}
 
-    Note (Work-in-progress): The tail-sum formula only holds exactly for integer-valued,
-    unit-increment fitness functions (For now). For other fitness functions (e.g., BinVal
-    with exponential spacing), the verification may show discrepancies.
+    Note: The tail-sum formula is mathematically exact for any fitness function
+    (it is the layer-cake identity applied to E[f* - X(t)]). For integer-valued
+    unit-increment fitness the Riemann sum implementation is also exact (\\delta_v = 1,
+    no discretisation error). For continuous or large-valued fitness a finite
+    level grid is used, introducing small numerical approximation error.
+    Special Case: BinVal is excluded not because the formula is invalid but
+    because its f* ~ 2^n would require an infeasible number of fitness levels
+    for the integer grid path.
 
     Args:
         empirical_ecr: Dict mapping algorithm name to E[CR(T)] array computed

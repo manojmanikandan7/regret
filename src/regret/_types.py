@@ -129,8 +129,10 @@ Derived via the tail-sum formula from inverse runtime profiles:
     E[CR(T)] = Sum_{v=1}^{f*} Sum_{t'=1}^{T} [1 - P(\\tau_v <= t')]
             {inverse profile: P(\\tau_v <= t); P(\\tau_v > t) = 1 - P(\\tau_v <= t)}
 
-Each array has shape (T,) matching the time_grid. For integer-valued,
-unit-increment fitness functions, this should match EmpiricalCumulativeRegret.
+Each array has shape (T,) matching the time_grid. For any fitness function,
+this converges to EmpiricalCumulativeRegret as the fitness level grid is
+refined; for integer-valued unit-increment fitness the Riemann sum
+implementation is exact (no discretization error).
 """
 
 InverseProfiles: TypeAlias = dict[str, InverseRuntimeProfile]

@@ -26,8 +26,8 @@ suite:
       - Population configurations span three regimes: 
         (1,1) ~~ (1+1)-EA baseline,
         (5,5) moderate population with balanced selection,
-        (10,20) larger population with 2:1 offspring ratio (high selection pressure),
-        (20,10) larger population with 1:2 parent ratio (low selection pressure);
+        (10,20) larger population with 2:1 offspring ratio (low selection pressure),
+        (20,10) larger population with 1:2 parent ratio (high selection pressure);
       - Mutation rate fixed at 1/n across all variants to isolate population effects;
       - Problems chosen to contrast unimodal (OneMax), sequential (LeadingOnes),
         bimodal (TwoMax), and deceptive (Jump-3) fitness landscapes;

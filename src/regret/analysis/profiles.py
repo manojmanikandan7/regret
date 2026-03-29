@@ -8,7 +8,10 @@ cumulative regret.
 Key concepts:
     - **Inverse Runtime Profile**: P(\\tau_v <= T) = probability of reaching fitness v by time T.
     - **Tail-sum formula for expectations**: E[CR(T)] = Sum_{v=1}^{f*} Sum_{t'=1}^{T} [1 - P(\\tau_v <= t')]
-        for integer-valued fitness functions with unit increments (Work-in-progress for other functions).
+        This formula is mathematically exact for any fitness function (it is the layer-cake identity
+        applied to E[f* - X(t)]). For integer-valued unit-increment fitness the Riemann sum
+        implementation is also exact; for continuous fitness a finite level grid introduces
+        small numerical approximation error.
 
 Type Aliases (imported from regret._types):
     HistoryResults: Results dict keyed by algorithm name.
@@ -157,10 +160,11 @@ def run_profile_analysis(
         fitness_levels = np.arange(1.0, float(int(round(f_star))) + 1.0, dtype=float)
     else:
         # For continuous/normalized objectives: use linear spacing.
-        # NOTE: This is an approximation. The tail-sum identity E[CR(T)] = sum of
-        # survival probabilities assumes discrete fitness levels. For continuous
-        # objectives, this produces approximate results suitable for visualization
-        # but may show small discrepancies in cr_profile_verification plots.
+        # NOTE: The tail-sum formula is mathematically exact for any fitness function.
+        # For continuous fitness, this Riemann sum implementation introduces small
+        # numerical approximation error whose magnitude depends on the grid spacing.
+        # With 1000 levels the approximation is generally very good; minor discrepancies
+        # in cr_profile_verification plots reflect numerical error, not formula invalidity.
 
         logger.warning(
             "Non-integer f_star=%.4f detected. Using linear fitness level "

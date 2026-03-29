@@ -2,7 +2,7 @@ suite:
   name: "08_runtime_profile_verification"
   description: >
     Validates the regret tail-sum representation
-      E[CR(T)] = Sum_{v=1}^{f8} Sum_{t'=1}^{T} P(\tau_v > t')
+      E[CR(T)] = Sum_{v=1}^{f*} Sum_{t'=1}^{T} P(\tau_v > t')
     on two problems with closed-form drift bounds.
 
     - RLS and (1+1)-EA achieve E[TTFO] = \theta(n log n) on OneMax

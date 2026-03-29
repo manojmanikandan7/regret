@@ -15,9 +15,6 @@ suite:
       - (1+1)-EA-mu_0.5-by-n removed: at rate 0.5/n the algorithm is strictly
         dominated on all Jump-k by rate 1/n (lower mutation rate never helps 
         cross a k-bit gap) and its curve adds no insight;
-      - inverse_runtime_profile_surface enabled: the two-phase
-        behaviour of Jump (fast rise to fitness n-k, then stall) is precisely the
-        structure the profile surface is designed to visualise;  
       - budget_for_plots set per-problem to capture plateau onset.
   runs: 25
   mode: "full"
