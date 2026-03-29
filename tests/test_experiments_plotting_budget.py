@@ -39,7 +39,7 @@ def _base_config() -> dict:
 
 def test_schema_accepts_plotting_budget_for_plots() -> None:
     config = _base_config()
-    config["plotting"] = {"budget_for_plots": 20}
+    config["plotting"] = {"enabled": True, "budget_for_plots": 20}
 
     # Should not raise schema validation errors.
     validate_schema(config)

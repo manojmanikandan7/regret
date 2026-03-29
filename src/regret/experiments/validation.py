@@ -10,8 +10,9 @@ from typing import Any
 import jsonschema
 import yaml
 
+from regret._registry import ALGORITHM_REGISTRY, COOLING_REGISTRY, PROBLEM_REGISTRY
+
 from .schema import CONFIG_SCHEMA
-from .utils import ALGORITHM_REGISTRY, COOLING_REGISTRY, PROBLEM_REGISTRY
 
 
 class ValidationError(Exception):

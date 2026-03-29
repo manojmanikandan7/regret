@@ -23,6 +23,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 
+from regret._registry import ALGORITHM_REGISTRY, COOLING_REGISTRY, PROBLEM_REGISTRY
 from regret._types import (
     EmpiricalCumulativeRegret,
     HistoryResults,
@@ -45,8 +46,6 @@ from regret.analysis.plotting import (
     plot_ttfo_distribution,
 )
 from regret.core.base import Algorithm, Problem
-
-from . import ALGORITHM_REGISTRY, COOLING_REGISTRY, PROBLEM_REGISTRY
 
 
 @dataclass(frozen=True)
